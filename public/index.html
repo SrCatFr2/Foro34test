@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f0f0f" />
+    <title>Foro34 — Chat en tiempo real</title>
+    <link rel="stylesheet" href="/css/style.css?v=__ASSET_V__" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Press+Start+2P&family=Playfair+Display:wght@700;900&family=JetBrains+Mono:wght@500;700&family=Caveat:wght@600;700&family=Permanent+Marker&family=Audiowide&family=Pacifico&display=swap" rel="stylesheet" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237c5cff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <!-- Lucide-style icon sprite. All UI icons reference these via <svg><use href="#i-name"/></svg> -->
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+      <defs>
+        <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></symbol>
+        <symbol id="i-hash" viewBox="0 0 24 24"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></symbol>
+        <symbol id="i-users" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+        <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></symbol>
+        <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+        <symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+        <symbol id="i-send" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></symbol>
+        <symbol id="i-paperclip" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></symbol>
+        <symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></symbol>
+        <symbol id="i-smile" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></symbol>
+        <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></symbol>
+        <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 17l-5 4 1-6L3 9l7-1 2-6 2 6 7 1-5 6 1 6z" fill="currentColor" stroke="none" opacity=".25"/><path d="M12 17v4"/><path d="M5 9l7-1 2-6 2 6 7 1-5 6"/></symbol>
+        <symbol id="i-reply" viewBox="0 0 24 24"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></symbol>
+        <symbol id="i-edit" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></symbol>
+        <symbol id="i-trash" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></symbol>
+        <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></symbol>
+        <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+        <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></symbol>
+        <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+        <symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
+        <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
+        <symbol id="i-message" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+        <symbol id="i-zap" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></symbol>
+        <symbol id="i-award" viewBox="0 0 24 24"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></symbol>
+        <symbol id="i-user" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+        <symbol id="i-server" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></symbol>
+        <symbol id="i-menu" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></symbol>
+        <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></symbol>
+        <symbol id="i-heart" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></symbol>
+        <symbol id="i-play" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></symbol>
+        <symbol id="i-eye" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></symbol>
+        <symbol id="i-arrow-left" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></symbol>
+        <symbol id="i-arrow-down" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></symbol>
+        <symbol id="i-radio" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></symbol>
+        <symbol id="i-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></symbol>
+      </defs>
+    </svg>
+
+    <div id="app">
+      <aside id="serverRail" class="server-rail js-only-auth">
+        <button class="server-icon active" data-server="global" title="Chat global"><svg class="ic"><use href="#i-home"/></svg></button>
+        <div id="serverList" class="server-list"></div>
+        <button id="newServerBtn" class="server-icon add" title="Crear / unirse a un server"><svg class="ic"><use href="#i-plus"/></svg></button>
+      </aside>
+
+      <button id="mobileMenuBtn" class="mobile-menu-btn" aria-label="Men\u00fa"><svg class="ic"><use href="#i-menu"/></svg></button>
+
+      <aside class="sidebar" id="sidebar">
+        <div class="brand">
+          <span class="brand-logo"><svg class="ic"><use href="#i-message"/></svg></span>
+          <span class="brand-name">Foro34</span>
+          <button class="sidebar-close" id="sidebarClose" aria-label="Cerrar"><svg class="ic"><use href="#i-x"/></svg></button>
+        </div>
+
+        <nav class="nav">
+          <button data-route="/" class="nav-btn active"><svg class="ic"><use href="#i-home"/></svg><span>Chat global</span></button>
+          <button data-route="/profile" class="nav-btn js-only-auth"><svg class="ic"><use href="#i-user"/></svg><span>Mi perfil</span></button>
+        </nav>
+
+        <div id="dmList" class="dm-list js-only-auth">
+          <div class="dm-list-head">
+            <span><svg class="ic ic-sm"><use href="#i-message"/></svg> Mensajes directos</span>
+            <button id="newDmBtn" class="icon-btn" title="Nuevo DM"><svg class="ic ic-sm"><use href="#i-plus"/></svg></button>
+          </div>
+          <div id="dmThreads"></div>
+        </div>
+
+        <div id="channelList" class="channel-list hidden">
+          <div class="channel-list-head">
+            <span id="activeServerName">Server</span>
+            <button id="newChannelBtn" class="icon-btn" title="Nuevo canal"><svg class="ic ic-sm"><use href="#i-plus"/></svg></button>
+          </div>
+          <div id="channels"></div>
+          <div class="channel-list-foot">
+            <code id="inviteCode" title="Click para copiar"></code>
+            <button id="leaveServerBtn" class="btn btn-ghost">Salir</button>
+          </div>
+        </div>
+
+        <div class="auth-card">
+          <div class="auth-anon" data-show-when="anon">
+            <p class="muted">Estás como invitado.</p>
+            <div class="row">
+              <button data-route="/login" class="btn btn-primary">Iniciar sesión</button>
+              <button data-route="/register" class="btn">Registrarme</button>
+            </div>
+          </div>
+          <div class="auth-user" data-show-when="auth">
+            <div class="me">
+              <span class="me-avatar-wrap"><img class="me-avatar" data-bind="me.avatarUrl" alt="" /></span>
+              <div>
+                <div class="me-name" data-bind="me.displayName"></div>
+                <div class="me-handle muted">@<span data-bind="me.username"></span></div>
+              </div>
+            </div>
+            <button id="logoutBtn" class="btn btn-ghost"><svg class="ic ic-sm"><use href="#i-logout"/></svg> Cerrar sesión</button>
+          </div>
+        </div>
+
+        <footer class="sidebar-foot muted">
+          Express · MongoDB · Cloudinary · Pusher
+        </footer>
+      </aside>
+
+      <main class="main">
+        <section class="view view-chat" data-view="/">
+          <header class="view-head">
+            <h1 id="viewTitle">Chat global</h1>
+            <span class="badge" id="rtBadge">EN VIVO</span>
+            <form class="header-search" id="searchForm" role="search" onsubmit="return false">
+              <svg class="ic ic-sm" style="color:var(--muted);margin-right:8px"><use href="#i-search"/></svg>
+              <input id="searchInput" type="search" placeholder="Buscar" aria-label="Buscar" />
+              <button type="submit" aria-label="Buscar"><svg class="ic ic-sm"><use href="#i-search"/></svg></button>
+            </form>
+            <div class="view-head-actions">
+              <button id="notifBtn" class="icon-btn js-only-auth" title="Notificaciones"><svg class="ic"><use href="#i-bell"/></svg><span class="notif-count"></span></button>
+              <button id="onlineToggle" class="icon-btn" title="Quién está conectado"><svg class="ic"><use href="#i-users"/></svg></button>
+            </div>
+          </header>
+          <div class="chat-grid">
+            <div class="chat-main">
+              <div id="messages" class="messages" aria-live="polite"></div>
+              <div id="typingIndicator" class="typing-indicator hidden"></div>
+              <div id="composerWrap" class="composer-wrap">
+                <div id="composerBanner" class="composer-banner hidden"></div>
+                <form id="composer" class="composer">
+                  <label class="upload" title="Adjuntar imagen / GIF">
+                    <input type="file" id="imageInput" accept="image/*" class="file-input" />
+                    <svg class="ic"><use href="#i-image"/></svg>
+                  </label>
+                  <button type="button" id="stickerBtn" class="upload js-only-auth" title="Stickers"><svg class="ic"><use href="#i-smile"/></svg></button>
+                  <button type="button" id="voiceBtn" class="upload js-only-auth" title="Nota de voz"><svg class="ic"><use href="#i-mic"/></svg></button>
+                  <input
+                    id="textInput"
+                    type="text"
+                    placeholder="Escribe un mensaje… (probá /help o @alguien)"
+                    maxlength="2000"
+                    autocomplete="off"
+                  />
+                  <button type="submit" class="btn btn-primary send-btn" title="Enviar"><svg class="ic"><use href="#i-send"/></svg><span class="send-label">Enviar</span></button>
+                </form>
+                <div id="previewBar" class="preview-bar hidden">
+                  <img id="previewImg" alt="preview" />
+                  <button type="button" id="clearPreview" class="btn btn-ghost"><svg class="ic ic-sm"><use href="#i-x"/></svg> Quitar</button>
+                </div>
+                <div id="voicePreview" class="voice-preview hidden">
+                  <span class="voice-pulse"></span>
+                  <span id="voiceTimer">0:00</span>
+                  <span id="voiceLabel">Grabando…</span>
+                  <button type="button" id="voiceStop" class="btn btn-primary"><svg class="ic ic-sm"><use href="#i-send"/></svg> Enviar</button>
+                  <button type="button" id="voiceCancel" class="btn btn-ghost"><svg class="ic ic-sm"><use href="#i-x"/></svg> Cancelar</button>
+                </div>
+                <div id="stickerPanel" class="sticker-panel hidden">
+                  <div class="sticker-panel-head">
+                    <span><svg class="ic ic-sm"><use href="#i-smile"/></svg> Stickers</span>
+                    <label class="btn btn-ghost" for="stickerUpload"><svg class="ic ic-sm"><use href="#i-plus"/></svg> Subir</label>
+                    <input type="file" id="stickerUpload" accept="image/*" class="file-input" />
+                    <button type="button" id="stickerClose" class="btn btn-ghost"><svg class="ic ic-sm"><use href="#i-x"/></svg></button>
+                  </div>
+                  <div id="stickerGrid" class="sticker-grid"></div>
+                </div>
+              </div>
+            </div>
+            <aside id="onlinePanel" class="online-panel">
+              <div id="onlineList" class="online-list"><div class="online-count">…</div></div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="view view-login hidden" data-view="/login">
+          <header class="view-head"><h1>Iniciar sesión</h1></header>
+          <form id="loginForm" class="form">
+            <label>Usuario o email<input name="identifier" required autocomplete="username" /></label>
+            <label>Contraseña<input name="password" type="password" required autocomplete="current-password" /></label>
+            <button class="btn btn-primary" type="submit">Entrar</button>
+            <p class="muted">¿No tienes cuenta? <a href="/register" data-route="/register">Crear una</a></p>
+            <p class="form-error" id="loginError"></p>
+          </form>
+        </section>
+
+        <section class="view view-register hidden" data-view="/register">
+          <header class="view-head"><h1>Crear cuenta</h1></header>
+          <form id="registerForm" class="form">
+            <label>Nombre visible<input name="displayName" maxlength="40" required /></label>
+            <label>Usuario (a-z 0-9 _)<input name="username" pattern="[a-z0-9_]{3,24}" required autocomplete="username" /></label>
+            <label>Email<input name="email" type="email" required autocomplete="email" /></label>
+            <label>Contraseña (min 6)<input name="password" type="password" minlength="6" required autocomplete="new-password" /></label>
+            <button class="btn btn-primary" type="submit">Registrarme</button>
+            <p class="muted">¿Ya tienes cuenta? <a href="/login" data-route="/login">Iniciar sesión</a></p>
+            <p class="form-error" id="registerError"></p>
+          </form>
+        </section>
+
+        <section class="view view-profile hidden" data-view="/profile">
+          <div id="profileContainer"></div>
+        </section>
+      </main>
+    </div>
+
+    <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
+
+    <script src="https://js.pusher.com/8.4/pusher.min.js"></script>
+    <script src="/js/app.js?v=__ASSET_V__"></script>
+  </body>
+</html>
