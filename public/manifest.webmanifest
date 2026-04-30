@@ -1,0 +1,27 @@
+{
+  "name": "Foro34 — Chat en tiempo real",
+  "short_name": "Foro34",
+  "description": "Chat en tiempo real con servers, mensajes directos, voz y stickers. Entra como invitado o regístrate.",
+  "lang": "es",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "categories": ["social", "communication", "entertainment"],
+  "icons": [
+    {
+      "src": "/img/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/img/logo-34.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

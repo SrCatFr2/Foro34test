@@ -1,19 +1,98 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" data-theme="dark">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#0f0f0f" />
+
+    <!-- ========== SEO + producto ========== -->
     <title>Foro34 — Chat en tiempo real</title>
-    <link rel="stylesheet" href="/css/style.css?v=__ASSET_V__" />
+    <meta name="description" content="Foro34: chat en tiempo real con servers, mensajes directos, voz y stickers. Entrá como invitado o creá tu cuenta gratis." />
+    <meta name="application-name" content="Foro34" />
+    <meta name="generator" content="Foro34" />
+    <meta name="author" content="Foro34" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="/" />
+
+    <!-- ========== Tema oscuro ========== -->
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0a0a0a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Foro34" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+    <!-- ========== Open Graph / Twitter ========== -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Foro34" />
+    <meta property="og:title" content="Foro34 — Chat en tiempo real" />
+    <meta property="og:description" content="Servers, DMs, voz y stickers. Entrá como invitado o creá tu cuenta." />
+    <meta property="og:image" content="/img/og-cover.svg" />
+    <meta property="og:image:type" content="image/svg+xml" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="es_ES" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Foro34 — Chat en tiempo real" />
+    <meta name="twitter:description" content="Servers, DMs, voz y stickers." />
+    <meta name="twitter:image" content="/img/og-cover.svg" />
+
+    <!-- ========== Iconos / PWA ========== -->
+    <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" sizes="any" />
+    <link rel="apple-touch-icon" href="/img/logo-34.svg" />
+    <link rel="mask-icon" href="/img/logo-34-mono.svg" color="#7c5cff" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- ========== Resource hints ========== -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Press+Start+2P&family=Playfair+Display:wght@700;900&family=JetBrains+Mono:wght@500;700&family=Caveat:wght@600;700&family=Permanent+Marker&family=Audiowide&family=Pacifico&display=swap" rel="stylesheet" />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237c5cff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'/%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://js.pusher.com" />
+    <link rel="dns-prefetch" href="https://res.cloudinary.com" />
+    <link rel="dns-prefetch" href="https://api.cloudinary.com" />
+
+    <!-- ========== CSS / fuentes ========== -->
+    <link rel="preload" as="style" href="/css/style.css?v=__ASSET_V__" />
+    <link rel="stylesheet" href="/css/style.css?v=__ASSET_V__" />
+
+    <!-- Una sola hoja de fuentes (HTTP/2 mux): Inter para UI + tipografías
+         decorativas usadas sólo en el customizer de perfil. `display=swap`
+         evita FOIT y deja al navegador renderizar con fallback mientras
+         descarga las fuentes reales. -->
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Press+Start+2P&family=Playfair+Display:wght@700;900&family=JetBrains+Mono:wght@500;700&family=Caveat:wght@600;700&family=Permanent+Marker&family=Audiowide&family=Pacifico&display=swap"
+    />
+
+    <!-- ========== Datos estructurados ========== -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Foro34",
+        "applicationCategory": "CommunicationApplication",
+        "operatingSystem": "Web",
+        "browserRequirements": "Requires JavaScript",
+        "description": "Chat en tiempo real con servers, mensajes directos, voz y stickers."
+      }
+    </script>
   </head>
+
   <body>
-    <!-- Lucide-style icon sprite. All UI icons reference these via <svg><use href="#i-name"/></svg> -->
-    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <a class="skip-link" href="#main-content">Saltar al contenido</a>
+
+    <noscript>
+      <div class="noscript-banner" role="alert">
+        Foro34 necesita JavaScript habilitado para funcionar. Activalo y recargá la página.
+      </div>
+    </noscript>
+
+    <!--
+      Sprite de iconos estilo Lucide. Cada icono se referencia desde la UI con
+      <svg class="ic"><use href="#i-..." /></svg>. Mantenerlo inline evita un
+      round-trip extra y permite hereda color vía currentColor.
+    -->
+    <svg class="svg-sprite" width="0" height="0" aria-hidden="true" focusable="false">
       <defs>
         <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></symbol>
         <symbol id="i-hash" viewBox="0 0 24 24"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></symbol>
@@ -50,51 +129,115 @@
         <symbol id="i-arrow-down" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></symbol>
         <symbol id="i-radio" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></symbol>
         <symbol id="i-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></symbol>
+        <symbol id="i-camera" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></symbol>
+        <symbol id="i-bot" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="12" rx="2"/><circle cx="8.5" cy="14" r="1.5"/><circle cx="15.5" cy="14" r="1.5"/><line x1="12" y1="4" x2="12" y2="8"/><line x1="8" y1="4" x2="16" y2="4"/></symbol>
+        <symbol id="i-bar-chart" viewBox="0 0 24 24"><line x1="6" y1="20" x2="6" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="18" y1="20" x2="18" y2="14"/></symbol>
+        <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M17 5h3a2 2 0 0 1 0 4 5 5 0 0 1-3 1"/><path d="M7 5H4a2 2 0 0 0 0 4 5 5 0 0 0 3 1"/></symbol>
+        <symbol id="i-film" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/></symbol>
+        <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></symbol>
+        <symbol id="i-volume" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></symbol>
+        <symbol id="i-volume-x" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></symbol>
+        <symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></symbol>
+        <symbol id="i-crown" viewBox="0 0 24 24"><path d="M2 7l5 4 5-7 5 7 5-4-2 13H4z"/></symbol>
+        <symbol id="i-panel-right" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="15" y1="4" x2="15" y2="20"/></symbol>
+        <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></symbol>
+        <symbol id="i-gamepad" viewBox="0 0 24 24"><line x1="6" y1="11" x2="10" y2="11"/><line x1="8" y1="9" x2="8" y2="13"/><line x1="15" y1="12" x2="15.01" y2="12"/><line x1="18" y1="10" x2="18.01" y2="10"/><path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258A4 4 0 0 0 17.32 5z"/></symbol>
+        <symbol id="i-flame" viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></symbol>
+        <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></symbol>
+        <symbol id="i-link-off" viewBox="0 0 24 24"><line x1="3" y1="3" x2="21" y2="21"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
+        <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></symbol>
       </defs>
     </svg>
 
+    <!-- =========================================================
+         Shell de la app: server-rail (Discord) + sidebar nav (YT) +
+         main content (chat tipo Twitch/Kick).
+         ========================================================= -->
     <div id="app">
-      <aside id="serverRail" class="server-rail js-only-auth">
-        <button class="server-icon active" data-server="global" title="Chat global"><svg class="ic"><use href="#i-home"/></svg></button>
-        <div id="serverList" class="server-list"></div>
-        <button id="newServerBtn" class="server-icon add" title="Crear / unirse a un server"><svg class="ic"><use href="#i-plus"/></svg></button>
+      <!-- Server rail: solo visible para usuarios autenticados -->
+      <aside id="serverRail" class="server-rail js-only-auth" aria-label="Tus servers">
+        <button class="server-icon active" data-server="global" title="Chat global" aria-label="Chat global">
+          <svg class="ic" aria-hidden="true"><use href="#i-home"/></svg>
+        </button>
+        <div id="serverList" class="server-list" role="list"></div>
+        <button id="newServerBtn" class="server-icon add" title="Crear o unirse a un server" aria-label="Crear o unirse a un server">
+          <svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>
+        </button>
       </aside>
 
-      <button id="mobileMenuBtn" class="mobile-menu-btn" aria-label="Men\u00fa"><svg class="ic"><use href="#i-menu"/></svg></button>
+      <!-- Toggle de sidebar para mobile -->
+      <button
+        id="mobileMenuBtn"
+        class="mobile-menu-btn"
+        aria-label="Abrir menú"
+        aria-expanded="false"
+        aria-controls="sidebar"
+      >
+        <svg class="ic" aria-hidden="true"><use href="#i-menu"/></svg>
+      </button>
 
-      <aside class="sidebar" id="sidebar">
-        <div class="brand">
-          <span class="brand-logo"><svg class="ic"><use href="#i-message"/></svg></span>
-          <span class="brand-name">Foro34</span>
-          <button class="sidebar-close" id="sidebarClose" aria-label="Cerrar"><svg class="ic"><use href="#i-x"/></svg></button>
-        </div>
+      <!-- Sidebar: marca, navegación, DMs, lista de canales y estado de cuenta -->
+      <aside class="sidebar" id="sidebar" aria-label="Navegación principal">
+        <header class="brand">
+          <a class="brand-link" href="/" data-route="/" aria-label="Foro34 — inicio">
+            <span class="brand-logo" aria-hidden="true">
+              <svg viewBox="0 0 64 64" focusable="false">
+                <rect width="64" height="64" rx="14" class="brand-logo-bg"/>
+                <text x="32" y="44" text-anchor="middle"
+                      font-family="Inter, -apple-system, 'Segoe UI', Roboto, sans-serif"
+                      font-size="34" font-weight="800" letter-spacing="-1.5" fill="#fff">34</text>
+              </svg>
+            </span>
+            <span class="brand-name">Foro34</span>
+          </a>
+          <button class="sidebar-close" id="sidebarClose" aria-label="Cerrar menú">
+            <svg class="ic" aria-hidden="true"><use href="#i-x"/></svg>
+          </button>
+        </header>
 
-        <nav class="nav">
-          <button data-route="/" class="nav-btn active"><svg class="ic"><use href="#i-home"/></svg><span>Chat global</span></button>
-          <button data-route="/profile" class="nav-btn js-only-auth"><svg class="ic"><use href="#i-user"/></svg><span>Mi perfil</span></button>
+        <nav class="nav" aria-label="Vistas principales">
+          <button data-route="/" class="nav-btn active">
+            <svg class="ic" aria-hidden="true"><use href="#i-home"/></svg>
+            <span>Chat global</span>
+          </button>
+          <button data-route="/clips" class="nav-btn">
+            <svg class="ic" aria-hidden="true"><use href="#i-film"/></svg>
+            <span>Clips</span>
+          </button>
+          <button data-route="/profile" class="nav-btn js-only-auth">
+            <svg class="ic" aria-hidden="true"><use href="#i-user"/></svg>
+            <span>Mi perfil</span>
+          </button>
         </nav>
 
-        <div id="dmList" class="dm-list js-only-auth">
+        <section id="dmList" class="dm-list js-only-auth" aria-label="Mensajes directos">
           <div class="dm-list-head">
-            <span><svg class="ic ic-sm"><use href="#i-message"/></svg> Mensajes directos</span>
-            <button id="newDmBtn" class="icon-btn" title="Nuevo DM"><svg class="ic ic-sm"><use href="#i-plus"/></svg></button>
+            <span><svg class="ic ic-sm" aria-hidden="true"><use href="#i-message"/></svg> Mensajes directos</span>
+            <button id="newDmBtn" class="icon-btn" title="Nuevo DM" aria-label="Nuevo mensaje directo">
+              <svg class="ic ic-sm" aria-hidden="true"><use href="#i-plus"/></svg>
+            </button>
           </div>
-          <div id="dmThreads"></div>
-        </div>
+          <div id="dmThreads" role="list"></div>
+        </section>
 
-        <div id="channelList" class="channel-list hidden">
+        <section id="channelList" class="channel-list hidden" aria-label="Canales del server">
           <div class="channel-list-head">
             <span id="activeServerName">Server</span>
-            <button id="newChannelBtn" class="icon-btn" title="Nuevo canal"><svg class="ic ic-sm"><use href="#i-plus"/></svg></button>
+            <button id="newChannelBtn" class="icon-btn" title="Nuevo canal" aria-label="Nuevo canal">
+              <svg class="ic ic-sm" aria-hidden="true"><use href="#i-plus"/></svg>
+            </button>
           </div>
-          <div id="channels"></div>
+          <div id="channels" role="list"></div>
           <div class="channel-list-foot">
-            <code id="inviteCode" title="Click para copiar"></code>
-            <button id="leaveServerBtn" class="btn btn-ghost">Salir</button>
+            <button id="inviteShareBtn" class="btn btn-ghost btn-sm" title="Compartir invitación">
+              <svg class="ic ic-sm" aria-hidden="true"><use href="#i-share"/></svg>
+              Invitar
+            </button>
+            <button id="leaveServerBtn" class="btn btn-ghost btn-sm">Salir</button>
           </div>
-        </div>
+        </section>
 
-        <div class="auth-card">
+        <section class="auth-card" aria-label="Cuenta">
           <div class="auth-anon" data-show-when="anon">
             <p class="muted">Estás como invitado.</p>
             <div class="row">
@@ -104,119 +247,356 @@
           </div>
           <div class="auth-user" data-show-when="auth">
             <div class="me">
-              <span class="me-avatar-wrap"><img class="me-avatar" data-bind="me.avatarUrl" alt="" /></span>
+              <span class="me-avatar-wrap">
+                <img class="me-avatar" data-bind="me.avatarUrl" alt="" loading="lazy" decoding="async" />
+              </span>
               <div>
                 <div class="me-name" data-bind="me.displayName"></div>
                 <div class="me-handle muted">@<span data-bind="me.username"></span></div>
               </div>
             </div>
-            <button id="logoutBtn" class="btn btn-ghost"><svg class="ic ic-sm"><use href="#i-logout"/></svg> Cerrar sesión</button>
+            <button id="logoutBtn" class="btn btn-ghost">
+              <svg class="ic ic-sm" aria-hidden="true"><use href="#i-logout"/></svg>
+              Cerrar sesión
+            </button>
           </div>
-        </div>
+        </section>
 
-        <footer class="sidebar-foot muted">
-          Express · MongoDB · Cloudinary · Pusher
-        </footer>
       </aside>
 
-      <main class="main">
-        <section class="view view-chat" data-view="/">
+      <!-- Main: vistas SPA (chat / login / register / profile) -->
+      <main class="main" id="main-content" role="main">
+        <!-- =====================
+             Vista: Chat
+             ===================== -->
+        <section class="view view-chat" data-view="/" aria-labelledby="viewTitle">
           <header class="view-head">
             <h1 id="viewTitle">Chat global</h1>
-            <span class="badge" id="rtBadge">EN VIVO</span>
             <form class="header-search" id="searchForm" role="search" onsubmit="return false">
-              <svg class="ic ic-sm" style="color:var(--muted);margin-right:8px"><use href="#i-search"/></svg>
-              <input id="searchInput" type="search" placeholder="Buscar" aria-label="Buscar" />
-              <button type="submit" aria-label="Buscar"><svg class="ic ic-sm"><use href="#i-search"/></svg></button>
+              <svg class="ic ic-sm" style="color:var(--muted);margin-right:8px" aria-hidden="true"><use href="#i-search"/></svg>
+              <input id="searchInput" type="search" placeholder="Buscar" aria-label="Buscar en el chat" />
+              <button type="submit" aria-label="Buscar">
+                <svg class="ic ic-sm" aria-hidden="true"><use href="#i-search"/></svg>
+              </button>
             </form>
             <div class="view-head-actions">
-              <button id="notifBtn" class="icon-btn js-only-auth" title="Notificaciones"><svg class="ic"><use href="#i-bell"/></svg><span class="notif-count"></span></button>
-              <button id="onlineToggle" class="icon-btn" title="Quién está conectado"><svg class="ic"><use href="#i-users"/></svg></button>
+              <button id="notifBtn" class="icon-btn js-only-auth" title="Notificaciones" aria-label="Notificaciones">
+                <svg class="ic" aria-hidden="true"><use href="#i-bell"/></svg>
+                <span class="notif-count"></span>
+              </button>
+              <button id="onlineToggle" class="icon-btn" title="Mostrar/ocultar usuarios conectados" aria-label="Mostrar u ocultar la lista de usuarios conectados" aria-pressed="false" aria-controls="onlinePanel">
+                <svg class="ic" aria-hidden="true"><use href="#i-panel-right"/></svg>
+              </button>
             </div>
           </header>
+
           <div class="chat-grid">
             <div class="chat-main">
-              <div id="messages" class="messages" aria-live="polite"></div>
-              <div id="typingIndicator" class="typing-indicator hidden"></div>
+              <div id="messages" class="messages" aria-live="polite" aria-label="Mensajes"></div>
+              <div id="typingIndicator" class="typing-indicator hidden" aria-live="polite"></div>
+
               <div id="composerWrap" class="composer-wrap">
-                <div id="composerBanner" class="composer-banner hidden"></div>
-                <form id="composer" class="composer">
-                  <label class="upload" title="Adjuntar imagen / GIF">
-                    <input type="file" id="imageInput" accept="image/*" class="file-input" />
-                    <svg class="ic"><use href="#i-image"/></svg>
+                <div id="composerBanner" class="composer-banner hidden" aria-live="polite"></div>
+
+                <form id="composer" class="composer" autocomplete="off">
+                  <label class="upload" title="Adjuntar imagen o GIF">
+                    <input type="file" id="imageInput" accept="image/*" class="file-input" aria-label="Adjuntar imagen" />
+                    <svg class="ic" aria-hidden="true"><use href="#i-image"/></svg>
                   </label>
-                  <button type="button" id="stickerBtn" class="upload js-only-auth" title="Stickers"><svg class="ic"><use href="#i-smile"/></svg></button>
-                  <button type="button" id="voiceBtn" class="upload js-only-auth" title="Nota de voz"><svg class="ic"><use href="#i-mic"/></svg></button>
+                  <button type="button" id="stickerBtn" class="upload js-only-auth" title="Stickers" aria-label="Abrir stickers">
+                    <svg class="ic" aria-hidden="true"><use href="#i-smile"/></svg>
+                  </button>
+                  <button type="button" id="voiceBtn" class="upload js-only-auth" title="Nota de voz" aria-label="Grabar nota de voz">
+                    <svg class="ic" aria-hidden="true"><use href="#i-mic"/></svg>
+                  </button>
                   <input
                     id="textInput"
                     type="text"
                     placeholder="Escribe un mensaje… (probá /help o @alguien)"
                     maxlength="2000"
                     autocomplete="off"
+                    aria-label="Escribir mensaje"
                   />
-                  <button type="submit" class="btn btn-primary send-btn" title="Enviar"><svg class="ic"><use href="#i-send"/></svg><span class="send-label">Enviar</span></button>
+                  <button type="submit" class="btn btn-primary send-btn" title="Enviar">
+                    <svg class="ic" aria-hidden="true"><use href="#i-send"/></svg>
+                    <span class="send-label">Enviar</span>
+                  </button>
                 </form>
+
                 <div id="previewBar" class="preview-bar hidden">
-                  <img id="previewImg" alt="preview" />
-                  <button type="button" id="clearPreview" class="btn btn-ghost"><svg class="ic ic-sm"><use href="#i-x"/></svg> Quitar</button>
+                  <img id="previewImg" alt="Vista previa de la imagen a enviar" />
+                  <button type="button" id="clearPreview" class="btn btn-ghost">
+                    <svg class="ic ic-sm" aria-hidden="true"><use href="#i-x"/></svg>
+                    Quitar
+                  </button>
                 </div>
-                <div id="voicePreview" class="voice-preview hidden">
-                  <span class="voice-pulse"></span>
+
+                <div id="voicePreview" class="voice-preview hidden" aria-live="polite">
+                  <span class="voice-pulse" aria-hidden="true"></span>
                   <span id="voiceTimer">0:00</span>
                   <span id="voiceLabel">Grabando…</span>
-                  <button type="button" id="voiceStop" class="btn btn-primary"><svg class="ic ic-sm"><use href="#i-send"/></svg> Enviar</button>
-                  <button type="button" id="voiceCancel" class="btn btn-ghost"><svg class="ic ic-sm"><use href="#i-x"/></svg> Cancelar</button>
+                  <button type="button" id="voiceStop" class="btn btn-primary">
+                    <svg class="ic ic-sm" aria-hidden="true"><use href="#i-send"/></svg>
+                    Enviar
+                  </button>
+                  <button type="button" id="voiceCancel" class="btn btn-ghost">
+                    <svg class="ic ic-sm" aria-hidden="true"><use href="#i-x"/></svg>
+                    Cancelar
+                  </button>
                 </div>
+
                 <div id="stickerPanel" class="sticker-panel hidden">
                   <div class="sticker-panel-head">
-                    <span><svg class="ic ic-sm"><use href="#i-smile"/></svg> Stickers</span>
-                    <label class="btn btn-ghost" for="stickerUpload"><svg class="ic ic-sm"><use href="#i-plus"/></svg> Subir</label>
+                    <span><svg class="ic ic-sm" aria-hidden="true"><use href="#i-smile"/></svg> Stickers</span>
+                    <label class="btn btn-ghost" for="stickerUpload">
+                      <svg class="ic ic-sm" aria-hidden="true"><use href="#i-plus"/></svg>
+                      Subir
+                    </label>
                     <input type="file" id="stickerUpload" accept="image/*" class="file-input" />
-                    <button type="button" id="stickerClose" class="btn btn-ghost"><svg class="ic ic-sm"><use href="#i-x"/></svg></button>
+                    <button type="button" id="stickerClose" class="btn btn-ghost" aria-label="Cerrar stickers">
+                      <svg class="ic ic-sm" aria-hidden="true"><use href="#i-x"/></svg>
+                    </button>
                   </div>
                   <div id="stickerGrid" class="sticker-grid"></div>
                 </div>
               </div>
             </div>
-            <aside id="onlinePanel" class="online-panel">
+
+            <aside id="onlinePanel" class="online-panel" aria-label="Usuarios en línea">
               <div id="onlineList" class="online-list"><div class="online-count">…</div></div>
             </aside>
           </div>
         </section>
 
-        <section class="view view-login hidden" data-view="/login">
-          <header class="view-head"><h1>Iniciar sesión</h1></header>
-          <form id="loginForm" class="form">
-            <label>Usuario o email<input name="identifier" required autocomplete="username" /></label>
-            <label>Contraseña<input name="password" type="password" required autocomplete="current-password" /></label>
+        <!-- =====================
+             Vista: Login
+             ===================== -->
+        <section class="view view-login hidden" data-view="/login" aria-labelledby="loginTitle">
+          <header class="view-head"><h1 id="loginTitle">Iniciar sesión</h1></header>
+          <form id="loginForm" class="form" novalidate>
+            <label>
+              <span>Usuario o email</span>
+              <input name="identifier" required autocomplete="username" inputmode="email" />
+            </label>
+            <label>
+              <span>Contraseña</span>
+              <input name="password" type="password" required autocomplete="current-password" />
+            </label>
             <button class="btn btn-primary" type="submit">Entrar</button>
             <p class="muted">¿No tienes cuenta? <a href="/register" data-route="/register">Crear una</a></p>
-            <p class="form-error" id="loginError"></p>
+            <p class="form-error" id="loginError" role="alert"></p>
           </form>
         </section>
 
-        <section class="view view-register hidden" data-view="/register">
-          <header class="view-head"><h1>Crear cuenta</h1></header>
-          <form id="registerForm" class="form">
-            <label>Nombre visible<input name="displayName" maxlength="40" required /></label>
-            <label>Usuario (a-z 0-9 _)<input name="username" pattern="[a-z0-9_]{3,24}" required autocomplete="username" /></label>
-            <label>Email<input name="email" type="email" required autocomplete="email" /></label>
-            <label>Contraseña (min 6)<input name="password" type="password" minlength="6" required autocomplete="new-password" /></label>
+        <!-- =====================
+             Vista: Registro
+             ===================== -->
+        <section class="view view-register hidden" data-view="/register" aria-labelledby="registerTitle">
+          <header class="view-head"><h1 id="registerTitle">Crear cuenta</h1></header>
+          <form id="registerForm" class="form" novalidate>
+            <label>
+              <span>Nombre visible</span>
+              <input name="displayName" maxlength="40" required />
+            </label>
+            <label>
+              <span>Usuario (a-z 0-9 _)</span>
+              <input name="username" pattern="[a-z0-9_]{3,24}" required autocomplete="username" />
+            </label>
+            <label>
+              <span>Email</span>
+              <input name="email" type="email" required autocomplete="email" inputmode="email" />
+            </label>
+            <label>
+              <span>Contraseña (min 6)</span>
+              <input name="password" type="password" minlength="6" required autocomplete="new-password" />
+            </label>
             <button class="btn btn-primary" type="submit">Registrarme</button>
             <p class="muted">¿Ya tienes cuenta? <a href="/login" data-route="/login">Iniciar sesión</a></p>
-            <p class="form-error" id="registerError"></p>
+            <p class="form-error" id="registerError" role="alert"></p>
           </form>
         </section>
 
-        <section class="view view-profile hidden" data-view="/profile">
+        <!-- =====================
+             Vista: Clips (TikTok-style)
+             ===================== -->
+        <section class="view view-clips hidden" data-view="/clips" aria-label="Clips">
+          <div class="clips-feed" id="clipsFeed"></div>
+          <button class="clips-upload-fab js-only-auth" id="clipsUploadBtn" aria-label="Subir clip">
+            <svg class="ic" aria-hidden="true"><use href="#i-upload"/></svg>
+          </button>
+        </section>
+
+        <!-- =====================
+             Vista: Perfil
+             ===================== -->
+        <section class="view view-profile hidden" data-view="/profile" aria-labelledby="viewTitle">
           <div id="profileContainer"></div>
         </section>
       </main>
+
+      <!-- Modal: Subir clip -->
+      <div class="modal-backdrop hidden" id="clipUploadModal">
+        <div class="modal clips-upload-modal">
+          <div class="modal-head">
+            <h2>Subir clip</h2>
+            <button class="icon-btn" id="clipUploadClose" aria-label="Cerrar">
+              <svg class="ic" aria-hidden="true"><use href="#i-x"/></svg>
+            </button>
+          </div>
+          <div class="modal-body">
+            <label class="file-drop" id="clipFileDrop">
+              <input type="file" accept="video/*" id="clipFileInput" hidden />
+              <svg class="ic ic-lg" aria-hidden="true"><use href="#i-film"/></svg>
+              <span>Arrastrá o tocá para elegir video</span>
+              <small class="muted">Máximo 80 MB</small>
+            </label>
+            <video class="clip-preview hidden" id="clipPreviewVideo" muted playsinline loop></video>
+            <textarea id="clipCaption" class="input" placeholder="Escribí un caption..." maxlength="500" rows="2"></textarea>
+            <input id="clipTags" class="input" placeholder="Tags (separados por coma)" maxlength="200" />
+            <button id="clipSubmitBtn" class="btn btn-primary" disabled>Subir clip</button>
+            <div class="clip-upload-progress hidden" id="clipProgress">
+              <div class="progress-bar"><div class="progress-fill" id="clipProgressFill"></div></div>
+              <span class="muted" id="clipProgressText">Subiendo...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal: Crear / unirse a servidor -->
+      <div class="modal-backdrop hidden" id="serverModal">
+        <div class="modal server-modal">
+          <div class="modal-head">
+            <h2 id="serverModalTitle">Servidores</h2>
+            <button class="icon-btn" id="serverModalClose" aria-label="Cerrar">
+              <svg class="ic" aria-hidden="true"><use href="#i-x"/></svg>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div class="modal-tabs" role="tablist">
+              <button class="modal-tab active" data-tab="create" role="tab">Crear</button>
+              <button class="modal-tab" data-tab="join" role="tab">Unirme</button>
+            </div>
+            <div class="modal-tab-panel" data-panel="create">
+              <label class="field">
+                <span class="muted">Nombre del server</span>
+                <input id="srvCreateName" class="input" placeholder="Ej: Mi pinche grupo" maxlength="40" autocomplete="off" />
+              </label>
+              <label class="field">
+                <span class="muted">Icono (1 emoji o letra)</span>
+                <input id="srvCreateIcon" class="input" placeholder="🚀" maxlength="8" autocomplete="off" />
+              </label>
+              <button class="btn btn-primary" id="srvCreateBtn">
+                <svg class="ic ic-sm" aria-hidden="true"><use href="#i-plus"/></svg>
+                Crear server
+              </button>
+              <p class="form-error" id="srvCreateError"></p>
+            </div>
+            <div class="modal-tab-panel hidden" data-panel="join">
+              <label class="field">
+                <span class="muted">Pega el código o un link de invitación</span>
+                <input id="srvJoinCode" class="input" placeholder="código o https://.../invite/abc123" autocomplete="off" />
+              </label>
+              <button class="btn btn-primary" id="srvJoinBtn">
+                <svg class="ic ic-sm" aria-hidden="true"><use href="#i-link"/></svg>
+                Unirme
+              </button>
+              <p class="form-error" id="srvJoinError"></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal: Compartir invitación de server -->
+      <div class="modal-backdrop hidden" id="inviteShareModal">
+        <div class="modal invite-share-modal">
+          <div class="modal-head">
+            <h2>Invitar a <span id="inviteShareName"></span></h2>
+            <button class="icon-btn" id="inviteShareClose" aria-label="Cerrar">
+              <svg class="ic" aria-hidden="true"><use href="#i-x"/></svg>
+            </button>
+          </div>
+          <div class="modal-body">
+            <p class="muted" style="margin:0">Compartí este link con tus amigos. Pueden hacer click y unirse al instante.</p>
+            <div class="invite-link-row">
+              <input id="inviteShareUrl" class="input" readonly />
+              <button class="btn btn-primary" id="inviteShareCopyBtn">
+                <svg class="ic ic-sm" aria-hidden="true"><use href="#i-copy"/></svg>
+                Copiar
+              </button>
+            </div>
+            <div class="invite-share-quick">
+              <button class="btn btn-ghost btn-sm" id="inviteShareNativeBtn">
+                <svg class="ic ic-sm" aria-hidden="true"><use href="#i-share"/></svg>
+                Compartir
+              </button>
+              <button class="btn btn-ghost btn-sm" id="inviteShareWhatsappBtn">
+                <svg class="ic ic-sm" aria-hidden="true"><use href="#i-message"/></svg>
+                WhatsApp
+              </button>
+            </div>
+            <details class="invite-share-code">
+              <summary class="muted">¿Querés solo el código?</summary>
+              <code id="inviteShareCode"></code>
+            </details>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal: Vista previa del invite (cuando entrás a /invite/:code) -->
+      <div class="modal-backdrop hidden" id="invitePreviewModal">
+        <div class="modal invite-preview-modal">
+          <div class="modal-body">
+            <div class="invite-preview-content" id="invitePreviewContent">
+              <p class="muted" style="text-align:center">Cargando…</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal: Iniciar DM (buscar usuario) -->
+      <div class="modal-backdrop hidden" id="dmPickerModal">
+        <div class="modal dm-picker-modal">
+          <div class="modal-head">
+            <h2>Iniciar mensaje directo</h2>
+            <button class="icon-btn" id="dmPickerClose" aria-label="Cerrar">
+              <svg class="ic" aria-hidden="true"><use href="#i-x"/></svg>
+            </button>
+          </div>
+          <div class="modal-body">
+            <input id="dmPickerInput" class="input" placeholder="Buscá por @username o nombre…" autocomplete="off" />
+            <div class="dm-picker-results" id="dmPickerResults"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sheet: Comentarios de clip -->
+      <div class="clip-comments-sheet hidden" id="clipCommentsSheet">
+        <div class="clip-comments-head">
+          <h3>Comentarios <span id="clipCommentCount"></span></h3>
+          <button class="icon-btn" id="clipCommentsClose" aria-label="Cerrar">
+            <svg class="ic" aria-hidden="true"><use href="#i-x"/></svg>
+          </button>
+        </div>
+        <div class="clip-comments-list" id="clipCommentsList"></div>
+        <div class="clip-comments-composer">
+          <input id="clipCommentInput" class="input" placeholder="Añadir comentario..." maxlength="500" />
+          <button id="clipCommentSend" class="icon-btn">
+            <svg class="ic" aria-hidden="true"><use href="#i-send"/></svg>
+          </button>
+        </div>
+      </div>
     </div>
 
     <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
 
-    <script src="https://js.pusher.com/8.4/pusher.min.js"></script>
-    <script src="/js/app.js?v=__ASSET_V__"></script>
+    <!--
+      Pusher es cliente WebSocket; si la API no está configurada el app cae a
+      polling automáticamente, así que cargarlo defer no rompe nada.
+      Twemoji se sirve local (CSP script-src 'self') y reemplaza emojis nativos
+      por SVGs estilo Twitter/Discord, consistentes en todas las plataformas.
+    -->
+    <script src="https://js.pusher.com/8.4/pusher.min.js" defer></script>
+    <script src="/vendor/twemoji.min.js?v=__ASSET_V__" defer></script>
+    <script src="/js/app.js?v=__ASSET_V__" defer></script>
   </body>
 </html>

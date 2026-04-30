@@ -1,34 +1,51 @@
-// UbreBot — calls Google Gemini (preferred, faster with smaller maxOutputTokens)
-// or Groq as fallback. Mentioned via "@UbreBot ..." anywhere in chat.
+// UbreBot — Cerebras-only, with retries + diagnostics.
+// Mentioned via "@UbreBot ..." anywhere in chat, or by replying to a UbreBot message.
 //
-// Speed knobs:
-//   - Aggressive timeout (8s default) so a slow upstream doesn't keep the user waiting forever.
-//   - In-memory LRU cache by (provider, prompt) to instant-respond to repeated mentions.
-//   - Lower maxOutputTokens (160) — most replies are 1-3 sentences anyway.
+// Why Cerebras-only:
+//   The user explicitly chose Cerebras as the single provider. Past versions had
+//   Groq/Gemini fallbacks, but those were cargo-cult and made it impossible to
+//   reason about latency / cost. This file commits to one provider and makes it
+//   robust (retries, jitter, model fallback within Cerebras itself).
 //
-// Tone: latin-spanish, playful but not cringe, uses light emojis, never explains
-// the punchline, calls out absurd questions but doesn't moralize.
+// HTTP 400 from Cerebras was poisoning the in-memory cache for 5 minutes.
+// Root causes seen in the wild:
+//   1. Free-tier rate limits sometimes surface as 400 instead of 429.
+//   2. Specific prompts can transiently fail; same prompt seconds later works.
+//   3. The previous code returned the error string but never threw, so the
+//      retry loop never ran and the cache stored the error message.
+//
+// The fix here:
+//   - Throw on any non-2xx so the caller can decide.
+//   - Retry up to 3 times with exponential backoff + temperature jitter.
+//   - On the last retry, fall back to a secondary Cerebras model.
+//   - Only cache successful responses.
+//   - Log the actual upstream error body for diagnostics.
 
 const SYSTEM_PROMPT = [
-  'Eres UbreBot, el bot oficial de Foro34, un chat tipo Discord en espa\u00f1ol latino.',
-  'Personalidad: c\u00e1lido, sarc\u00e1stico amable, juguet\u00f3n, con humor seco. Sos como ese amigo que tira chistes pero te ayuda.',
-  'Estilo: respondes en 1\u20133 oraciones cortas. Espa\u00f1ol latino casual (vos/te, "che", "dale", "posta", "qu\u00e9 onda"). Nada de tono corporativo ni "como modelo de IA".',
-  'Emojis: usa 0 o 1 por respuesta. Preferidos: \ud83d\ude2c \ud83e\udd14 \ud83d\udd25 \u2728 \ud83e\udd20 \ud83d\udca9 \ud83d\ude44.',
-  'Si te preguntan algo absurdo, segui la corriente con humor en vez de moralizar.',
-  'NUNCA inventes datos personales de quien te habla.',
-  'Si no sab\u00e9s algo, decilo con gracia.',
-  'No expliques que sos una IA a menos que te pregunten directamente.',
+  'Eres UbreBot, el bot del foro Foro34. Un chat latino con onda Discord donde la gente cotorrea pesado.',
+  'Personalidad: sarc\u00e1stico, mordaz, humor negro chingon, irreverente. Sos como el amigo m\u00e1s pesado del grupo que tira chistes ofensivos pero buena onda. Cero corporativo, cero "como modelo de IA", cero moralejas.',
+  'Estilo: vos/te ("qu\u00e9 onda", "chido", "chinga", "pinche", "cabr\u00f3n", "posta", "dale"). Respond\u00e9s en 1\u20133 oraciones m\u00e1ximo. Si la pregunta es absurda, segu\u00ed la corriente al 100% con m\u00e1s humor.',
+  'Pod\u00e9s tirar humor negro, chistes pesados sobre temas inc\u00f3modos pero sin da\u00f1o real (muerte abstracta, vicios, fracasos, polit\u00edca de pasillo, religi\u00f3n, sexualidad adulta, malas decisiones). Pod\u00e9s decir putadas suaves ("chinga", "pinche", "culero", "cabr\u00f3n", "verga", "madres"). Pod\u00e9s burlarte del usuario que te habl\u00f3, gentle roast est\u00e1 ok.',
+  'NO te pongas serio ni des advertencias. NO digas "como IA no puedo...". NO moralices. NO recomiendes terapia salvo en chiste.',
+  'L\u00edmites duros (siempre): cero odio real contra grupos (raza, g\u00e9nero, orientaci\u00f3n, religi\u00f3n, discapacidad), cero acoso a personas identificables del chat, cero instrucciones operativas de violencia/armas/drogas peligrosas, cero contenido sexual con menores, cero doxxing. Si te empujan ah\u00ed, esquiv\u00e1 con un chiste y cambi\u00e1 de tema. NO es negociable.',
+  'Emojis: 0 o 1 por respuesta, m\u00e1ximo. Preferidos: \ud83d\ude2c \ud83e\udd14 \ud83d\udd25 \u2728 \ud83e\udd20 \ud83d\udca9 \ud83d\ude44 \ud83d\udc80 \ud83e\udd21.',
+  'NUNCA inventes datos personales del que te habla. Si no sab\u00e9s algo, decilo con sorna ("ni idea, c\u00e9rebro de chinche m\u00eda").',
 ].join(' ');
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-flash-latest';
-const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.1-8b-instant';
-const TIMEOUT_MS = parseInt(process.env.UBREBOT_TIMEOUT_MS || '8000', 10);
+const CEREBRAS_URL = 'https://api.cerebras.ai/v1/chat/completions';
+const CEREBRAS_MODEL = process.env.CEREBRAS_MODEL || 'llama3.1-8b';
+// Secondary model used as last-resort retry on the same provider.
+// qwen-3-235b is also free-tier on Cerebras, just slower.
+const CEREBRAS_FALLBACK_MODEL = process.env.CEREBRAS_FALLBACK_MODEL || 'qwen-3-235b-a22b-instruct-2507';
+
+const TIMEOUT_MS = parseInt(process.env.UBREBOT_TIMEOUT_MS || '10000', 10);
 const MAX_TOKENS = parseInt(process.env.UBREBOT_MAX_TOKENS || '160', 10);
+const MAX_RETRIES = parseInt(process.env.UBREBOT_MAX_RETRIES || '3', 10);
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const cache = new Map(); // key -> { reply, exp }
 
-function cacheKey(provider, prompt) {
-  return `${provider}:${prompt.toLowerCase().replace(/\s+/g, ' ').trim()}`;
+function cacheKey(prompt) {
+  return prompt.toLowerCase().replace(/\s+/g, ' ').trim();
 }
 function fromCache(key) {
   const hit = cache.get(key);
@@ -44,106 +61,104 @@ function toCache(key, reply) {
   cache.set(key, { reply, exp: Date.now() + CACHE_TTL_MS });
 }
 
-function fetchWithTimeout(url, opts) {
+function fetchWithTimeout(url, opts, timeout = TIMEOUT_MS) {
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  const t = setTimeout(() => ctrl.abort(), timeout);
   return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(t));
 }
 
-async function callGemini(apiKey, prompt, userIntro) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
+async function callCerebrasOnce(apiKey, model, prompt, userIntro, temperature) {
   const body = {
-    systemInstruction: { role: 'system', parts: [{ text: SYSTEM_PROMPT + (userIntro ? '\n' + userIntro : '') }] },
-    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    generationConfig: { temperature: 0.85, maxOutputTokens: MAX_TOKENS, topP: 0.9 },
-    safetySettings: [
-      { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
-      { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
-      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
-      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
+    model,
+    temperature,
+    max_tokens: MAX_TOKENS,
+    top_p: 0.9,
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT + (userIntro ? '\n' + userIntro : '') },
+      { role: 'user', content: prompt },
     ],
   };
-  const res = await fetchWithTimeout(url, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const txt = await res.text().catch(() => '');
-    console.error('gemini failed', res.status, txt.slice(0, 300));
-    return `Mi cerebro est\u00e1 con un problemita (HTTP ${res.status}). Intentalo en un toque.`;
-  }
-  const data = await res.json();
-  const parts = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
-  const text = parts && parts.map((p) => p.text || '').join('').trim();
-  return (text || 'Hmm, no se me ocurre nada \ud83d\ude05').slice(0, 1800);
-}
-
-async function callGroq(apiKey, prompt, userIntro) {
-  const res = await fetchWithTimeout('https://api.groq.com/openai/v1/chat/completions', {
+  const res = await fetchWithTimeout(CEREBRAS_URL, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
       authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({
-      model: GROQ_MODEL,
-      temperature: 0.85,
-      max_tokens: MAX_TOKENS,
-      top_p: 0.9,
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT + (userIntro ? '\n' + userIntro : '') },
-        { role: 'user', content: prompt },
-      ],
-    }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     const txt = await res.text().catch(() => '');
-    console.error('groq failed', res.status, txt.slice(0, 200));
-    return `Mi cerebro est\u00e1 con un problemita (HTTP ${res.status}). Intentalo en un toque.`;
+    const err = new Error(`cerebras ${res.status}`);
+    err.status = res.status;
+    err.body = txt.slice(0, 400);
+    throw err;
   }
   const data = await res.json();
   const content = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
-  return (content || 'Hmm, no se me ocurre nada \ud83d\ude05').slice(0, 1800);
+  const out = (content || '').trim();
+  if (!out) throw new Error('cerebras empty response');
+  return out.slice(0, 1800);
+}
+
+async function callCerebrasWithRetries(apiKey, prompt, userIntro) {
+  let lastErr = null;
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    // Use fallback model on the very last attempt only.
+    const model = (attempt === MAX_RETRIES - 1) ? CEREBRAS_FALLBACK_MODEL : CEREBRAS_MODEL;
+    // Slight temperature jitter so we don't deterministically reproduce a flaky 400.
+    const temperature = 0.8 + Math.random() * 0.15;
+    try {
+      return await callCerebrasOnce(apiKey, model, prompt, userIntro, temperature);
+    } catch (err) {
+      lastErr = err;
+      const status = err && err.status;
+      const msg = (err && err.message) || 'unknown';
+      const body = (err && err.body) || '';
+      console.error(`ubrebot cerebras attempt ${attempt + 1}/${MAX_RETRIES} failed: ${msg} (status=${status}) body=${body}`);
+      // No retry on auth errors.
+      if (status === 401 || status === 403) break;
+      // Exponential backoff with jitter: 300ms, 900ms, 2100ms
+      const backoff = 300 * Math.pow(3, attempt) + Math.floor(Math.random() * 200);
+      if (attempt < MAX_RETRIES - 1) await sleep(backoff);
+    }
+  }
+  throw lastErr || new Error('cerebras failed');
 }
 
 async function ask(prompt, context = {}) {
   const cleaned = (prompt || '').toString().slice(0, 2000).trim();
   if (!cleaned) return 'Mencioname con una pregunta o algo que quieras decir y te respondo.';
 
+  const apiKey = process.env.CEREBRAS_API_KEY;
+  if (!apiKey) {
+    return 'Hola, soy UbreBot. A\u00fan no me cargaron la CEREBRAS_API_KEY, dec\u00edselo al admin. \u2728';
+  }
+
   const userIntro = context.displayName
     ? `Te est\u00e1 hablando ${context.displayName}.`
     : '';
 
-  // Try Groq first if available — it is significantly faster than Gemini for short replies.
-  // Fall back to Gemini if Groq is missing.
-  const groqKey = process.env.GROQ_API_KEY;
-  const geminiKey = process.env.GEMINI_API_KEY;
-  const preferGemini = process.env.UBREBOT_PROVIDER === 'gemini';
+  const ck = cacheKey(cleaned);
+  const cached = fromCache(ck);
+  if (cached) return cached;
 
-  const order = [];
-  if (preferGemini && geminiKey) order.push(['gemini', () => callGemini(geminiKey, cleaned, userIntro)]);
-  if (groqKey) order.push(['groq', () => callGroq(groqKey, cleaned, userIntro)]);
-  if (geminiKey && !preferGemini) order.push(['gemini', () => callGemini(geminiKey, cleaned, userIntro)]);
-
-  for (const [name, run] of order) {
-    const ck = cacheKey(name, cleaned);
-    const cached = fromCache(ck);
-    if (cached) return cached;
-    try {
-      const reply = await run();
-      toCache(ck, reply);
-      return reply;
-    } catch (err) {
-      const msg = (err && err.name === 'AbortError') ? 'timeout' : (err && err.message) || 'unknown';
-      console.error(`ubrebot ${name} error:`, msg);
-      // try next provider
-    }
+  try {
+    const reply = await callCerebrasWithRetries(apiKey, cleaned, userIntro);
+    toCache(ck, reply);
+    return reply;
+  } catch (err) {
+    const status = err && err.status;
+    const reasonHint = status === 429 || status === 400
+      ? 'me pegaron un rate-limit, esper\u00e1 un toque'
+      : status === 401 || status === 403
+        ? 'la API key est\u00e1 vencida, av\u00edsale al admin'
+        : 'mi cerebro tuvo un cortocircuito';
+    // Do NOT cache the error string — caching errors made the bot stay broken
+    // for 5 minutes after a single transient failure. Always retry next time.
+    return `Se me cay\u00f3 el wifi mental, ${reasonHint}. Tira de nuevo en un toque \ud83d\ude2c`;
   }
-  if (!order.length) {
-    return 'Hola, soy UbreBot. Mi cerebro a\u00fan no est\u00e1 conectado. Configur\u00e1 GROQ_API_KEY o GEMINI_API_KEY y respondo de verdad. \u2728';
-  }
-  return 'Se me cay\u00f3 el wifi mental, dame un toque y vuelvo a intentarlo \ud83e\udd2f';
 }
 
 const UBREBOT_USERNAME = 'ubrebot';

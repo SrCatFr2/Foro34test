@@ -16,6 +16,8 @@ const realtimeRoutes = require('./routes/realtime');
 const serverRoutes = require('./routes/servers');
 const stickerRoutes = require('./routes/stickers');
 const dmRoutes = require('./routes/dms');
+const integrationsRoutes = require('./routes/integrations');
+const videoRoutes = require('./routes/videos');
 
 // Asset version used for cache-busting. Computed once per cold start so
 // served HTML always references the current deploy's JS/CSS.
@@ -50,9 +52,10 @@ function createApp() {
         'script-src': ["'self'", 'https://js.pusher.com'],
         'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         'font-src': ["'self'", 'https://fonts.gstatic.com', 'data:'],
-        'img-src': ["'self'", 'data:', 'blob:', 'https://res.cloudinary.com', 'https:'],
-        'media-src': ["'self'", 'blob:', 'https://res.cloudinary.com', 'https:'],
+        'img-src': ["'self'", 'data:', 'blob:', 'https://res.cloudinary.com', 'https://i.scdn.co', 'https://mosaic.scdn.co', 'https://cdn.brawlify.com', 'https:'],
+        'media-src': ["'self'", 'blob:', 'https://res.cloudinary.com', 'https://p.scdn.co', 'https:'],
         'connect-src': ["'self'", 'https://*.pusher.com', 'wss://*.pusher.com', 'wss://*.pusherapp.com'],
+        'frame-src': ["'self'", 'https://open.spotify.com'],
         'frame-ancestors': ["'self'"],
         'object-src': ["'none'"],
         'base-uri': ["'self'"],
@@ -102,6 +105,8 @@ function createApp() {
   app.use('/api/servers', writeLimiter, serverRoutes);
   app.use('/api/stickers', writeLimiter, stickerRoutes);
   app.use('/api/dms', dmRoutes);
+  app.use('/api/integrations', integrationsRoutes);
+  app.use('/api/videos', videoRoutes);
 
   const publicDir = path.join(__dirname, '..', 'public');
   const assetVersion = computeAssetVersion(publicDir);
@@ -126,7 +131,7 @@ function createApp() {
 
   // Render index.html for SPA routes with cache-busting stamp injected.
   const indexPath = path.join(publicDir, 'index.html');
-  app.get(['/', '/login', '/register', '/profile', '/u/:username'], (_req, res) => {
+  app.get(['/', '/login', '/register', '/profile', '/clips', '/clips/:id', '/u/:username', '/invite/:code'], (_req, res) => {
     let html;
     try {
       html = fs.readFileSync(indexPath, 'utf8');

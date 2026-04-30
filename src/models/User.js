@@ -54,6 +54,58 @@ const AchievementSchema = new mongoose.Schema(
   { _id: false },
 );
 
+// Integrations are stored on the user doc so we don't need a separate collection.
+// Tokens are kept server-side only (toPublicJSON omits them).
+const SpotifyIntegrationSchema = new mongoose.Schema(
+  {
+    connected: { type: Boolean, default: false },
+    spotifyId: { type: String, default: '' },
+    displayName: { type: String, default: '' },
+    profileUrl: { type: String, default: '' },
+    avatarUrl: { type: String, default: '' },
+    accessToken: { type: String, default: '' },
+    refreshToken: { type: String, default: '' },
+    expiresAt: { type: Date, default: null },
+    scope: { type: String, default: '' },
+  },
+  { _id: false },
+);
+
+const BrawlStarsBrawlerSchema = new mongoose.Schema(
+  {
+    id: { type: Number, default: 0 },
+    name: { type: String, default: '' },
+    power: { type: Number, default: 0 },
+    rank: { type: Number, default: 0 },
+    trophies: { type: Number, default: 0 },
+    highestTrophies: { type: Number, default: 0 },
+  },
+  { _id: false },
+);
+
+const BrawlStarsIntegrationSchema = new mongoose.Schema(
+  {
+    connected: { type: Boolean, default: false },
+    tag: { type: String, default: '' }, // normalized like "#YYY..."
+    name: { type: String, default: '' },
+    trophies: { type: Number, default: 0 },
+    highestTrophies: { type: Number, default: 0 },
+    expLevel: { type: Number, default: 0 },
+    brawlersUnlocked: { type: Number, default: 0 },
+    threeVsThreeVictories: { type: Number, default: 0 },
+    soloVictories: { type: Number, default: 0 },
+    duoVictories: { type: Number, default: 0 },
+    club: {
+      tag: { type: String, default: '' },
+      name: { type: String, default: '' },
+    },
+    iconId: { type: Number, default: 0 },
+    topBrawlers: { type: [BrawlStarsBrawlerSchema], default: [] },
+    fetchedAt: { type: Date, default: null },
+  },
+  { _id: false },
+);
+
 const UserSchema = new mongoose.Schema(
   {
     username: {
@@ -103,6 +155,10 @@ const UserSchema = new mongoose.Schema(
       images: { type: Number, default: 0 },
       stickersUsed: { type: Number, default: 0 },
     },
+    integrations: {
+      spotify: { type: SpotifyIntegrationSchema, default: () => ({}) },
+      brawlStars: { type: BrawlStarsIntegrationSchema, default: () => ({}) },
+    },
   },
   { timestamps: true },
 );
@@ -129,6 +185,39 @@ UserSchema.methods.toPublicJSON = function () {
     pinnedMessageIds: (this.pinnedMessageIds || []).map((id) => id.toString()),
     achievements: (this.achievements || []).map((a) => ({ key: a.key, unlockedAt: a.unlockedAt })),
     stats: this.stats || {},
+    integrations: {
+      spotify: {
+        connected: !!(this.integrations && this.integrations.spotify && this.integrations.spotify.connected),
+        displayName: (this.integrations && this.integrations.spotify && this.integrations.spotify.displayName) || '',
+        profileUrl: (this.integrations && this.integrations.spotify && this.integrations.spotify.profileUrl) || '',
+        avatarUrl: (this.integrations && this.integrations.spotify && this.integrations.spotify.avatarUrl) || '',
+      },
+      brawlStars: (() => {
+        const bs = (this.integrations && this.integrations.brawlStars) || {};
+        return {
+          connected: !!bs.connected,
+          tag: bs.tag || '',
+          name: bs.name || '',
+          trophies: bs.trophies || 0,
+          highestTrophies: bs.highestTrophies || 0,
+          expLevel: bs.expLevel || 0,
+          brawlersUnlocked: bs.brawlersUnlocked || 0,
+          threeVsThreeVictories: bs.threeVsThreeVictories || 0,
+          soloVictories: bs.soloVictories || 0,
+          duoVictories: bs.duoVictories || 0,
+          club: bs.club || { tag: '', name: '' },
+          iconId: bs.iconId || 0,
+          topBrawlers: (bs.topBrawlers || []).map((b) => ({
+            id: b.id || 0,
+            name: b.name || '',
+            power: b.power || 0,
+            rank: b.rank || 0,
+            trophies: b.trophies || 0,
+            highestTrophies: b.highestTrophies || 0,
+          })),
+        };
+      })(),
+    },
     createdAt: this.createdAt,
   };
 };

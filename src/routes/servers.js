@@ -39,12 +39,43 @@ router.post('/', authRequired, async (req, res) => {
   }
 });
 
-// Join a server by invite code.
+// Public preview of an invite link. Lets a logged-out user see the server
+// name/icon/member count before being asked to log in or join.
+router.get('/invite/:code', async (req, res) => {
+  try {
+    await connectDB();
+    const code = (req.params.code || '').toString().trim();
+    if (!code) return res.status(400).json({ error: 'Falta el c\u00f3digo' });
+    const s = await Server.findOne({ inviteCode: code }).select('name icon members channels inviteCode');
+    if (!s) return res.status(404).json({ error: 'Invitaci\u00f3n no v\u00e1lida o expirada' });
+    res.json({
+      invite: {
+        code: s.inviteCode,
+        serverId: s._id.toString(),
+        name: s.name,
+        icon: s.icon || '',
+        memberCount: (s.members || []).length,
+        channelCount: (s.channels || []).length,
+      },
+    });
+  } catch (err) {
+    console.error('preview invite', err);
+    res.status(500).json({ error: 'Failed' });
+  }
+});
+
+// Join a server by invite code. Accepts a raw code OR a full invite URL
+// (e.g. https://foro34.com/invite/abc123) — we strip the URL and keep the
+// trailing token, so users can paste either format.
 router.post('/join', authRequired, async (req, res) => {
   try {
     await connectDB();
-    const code = (req.body.code || '').toString().trim();
+    let code = (req.body.code || '').toString().trim();
     if (!code) return res.status(400).json({ error: 'Falta el c\u00f3digo' });
+    const urlMatch = code.match(/(?:\/invite\/|\?invite=)([a-f0-9]{6,32})/i);
+    if (urlMatch) code = urlMatch[1];
+    code = code.replace(/[^a-f0-9]/gi, '').toLowerCase();
+    if (!code) return res.status(400).json({ error: 'C\u00f3digo no v\u00e1lido' });
     const s = await Server.findOne({ inviteCode: code });
     if (!s) return res.status(404).json({ error: 'Invitaci\u00f3n no v\u00e1lida' });
     if (!s.members.some((m) => m.toString() === req.user.id)) {

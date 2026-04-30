@@ -217,6 +217,7 @@ router.post('/', authOptional, sendLimiter, upload, async (req, res) => {
 
     // Resolve replyTo snapshot
     let replyTo = null;
+    let replyingToBot = false;
     if (replyToId) {
       try {
         const orig = await Message.findById(replyToId).lean();
@@ -228,6 +229,9 @@ router.post('/', authOptional, sendLimiter, upload, async (req, res) => {
             snippet: (orig.text || '').slice(0, 140),
             snippetImage: orig.imageUrl || '',
           };
+          if (orig.author && orig.author.username === ubrebot.UBREBOT_USERNAME) {
+            replyingToBot = true;
+          }
         }
       } catch (_e) { /* ignore bad ids */ }
     }
@@ -317,34 +321,45 @@ router.post('/', authOptional, sendLimiter, upload, async (req, res) => {
     }
 
     // UbreBot trigger — runs before the static command bot.
-    if (userPayload && ubrebot.isMentioned(modText)) {
+    // Also fires when the user is *replying* to a UbreBot message, so they
+    // can keep the conversation going with one tap (no need to type @UbreBot).
+    //
+    // We MUST await here. Previously this used `.then(...)` fire-and-forget,
+    // but on Vercel serverless the function instance can be torn down right
+    // after `res.json(...)`, dropping the bot reply on the floor. Awaiting
+    // keeps the function alive until the broadcast actually goes out, so
+    // clients receive the reply over Pusher without needing to refresh.
+    let ubrePayload = null;
+    if (userPayload && (ubrebot.isMentioned(modText) || replyingToBot)) {
       const prompt = ubrebot.stripMention(modText);
       // Tell the room UbreBot is "typing" so the UI shows the indicator immediately.
-      broadcast(`room-${room}`, 'bot:typing', { botName: 'UbreBot', at: Date.now() }).catch(() => {});
-      ubrebot.ask(prompt, { displayName: author.displayName }).then(async (reply) => {
-        try {
-          const ubre = {
-            userId: null,
-            username: ubrebot.UBREBOT_USERNAME,
-            displayName: 'UbreBot',
-            avatarUrl: '',
-            color: '#22c55e',
-            decoration: 'aurora',
-            effect: 'pulse',
-            nameFont: 'default',
-            anonymous: false,
-            bot: true,
-          };
-          const ubreMsg = await Message.create({
-            text: reply,
-            kind: 'system',
-            author: ubre,
-            room,
-            replyTo: { id: userPayload.id, authorDisplayName: author.displayName, authorColor: author.color, snippet: (modText || '').slice(0, 140), snippetImage: '' },
-          });
-          await broadcast(`room-${room}`, 'message:new', ubreMsg.toClientJSON());
-        } catch (e) { console.warn('ubrebot reply', e.message); }
-      });
+      await broadcast(`room-${room}`, 'bot:typing', { botName: 'UbreBot', at: Date.now() }).catch(() => {});
+      try {
+        const reply = await ubrebot.ask(prompt, { displayName: author.displayName });
+        const ubre = {
+          userId: null,
+          username: ubrebot.UBREBOT_USERNAME,
+          displayName: 'UbreBot',
+          avatarUrl: '',
+          color: '#22c55e',
+          decoration: 'aurora',
+          effect: 'pulse',
+          nameFont: 'default',
+          anonymous: false,
+          bot: true,
+        };
+        const ubreMsg = await Message.create({
+          text: reply,
+          kind: 'system',
+          author: ubre,
+          room,
+          replyTo: { id: userPayload.id, authorDisplayName: author.displayName, authorColor: author.color, snippet: (modText || '').slice(0, 140), snippetImage: '' },
+        });
+        ubrePayload = ubreMsg.toClientJSON();
+        await broadcast(`room-${room}`, 'message:new', ubrePayload);
+      } catch (e) {
+        console.warn('ubrebot reply', e.message);
+      }
     }
 
     // Bot reply (system)
@@ -366,6 +381,7 @@ router.post('/', authOptional, sendLimiter, upload, async (req, res) => {
     res.status(201).json({
       message: userPayload,
       botReply: botPayload,
+      ubreReply: ubrePayload,
       broadcast: 'ok',
     });
   } catch (err) {

@@ -24,6 +24,7 @@
     activeDm: null,       // { room, with: {...} } when in a DM
     stickers: [],         // user's stickers
     voice: { recorder: null, chunks: [], started: 0, stream: null, timerId: 0 },
+    profileEditing: false,        // when true, profile shows the edit panel
   };
 
   const $ = (sel, root = document) => root.querySelector(sel);
@@ -146,7 +147,14 @@
     if (p === '/register') return '/register';
     if (p === '/profile') return '/profile';
     if (p.startsWith('/u/')) return '/profile';
+    if (p === '/clips' || p.startsWith('/clips/')) return '/clips';
+    if (p.startsWith('/invite/')) return '/invite';
     return '/';
+  }
+  function inviteCodeFromPath() {
+    const p = location.pathname;
+    if (!p.startsWith('/invite/')) return '';
+    return p.slice('/invite/'.length).split(/[?#/]/)[0];
   }
 
   function render() {
@@ -157,7 +165,9 @@
     $$('.nav-btn').forEach((b) => b.classList.toggle('active', b.dataset.route === route));
 
     if (route === '/') initChatView();
+    if (route === '/clips') initClipsView();
     if (route === '/profile') renderProfileView();
+    if (route === '/invite') openInvitePreview(inviteCodeFromPath());
   }
 
   // ----- Auth UI -----
@@ -260,7 +270,7 @@
       </button>`;
     }).join('');
     return `<div class="poll-card">
-      <div class="poll-q">📊 ${escapeHTML(m.poll.question)}</div>
+      <div class="poll-q"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-bar-chart"/></svg> ${escapeHTML(m.poll.question)}</div>
       <div class="poll-opts">${opts}</div>
       <div class="poll-meta">${total} voto${total === 1 ? '' : 's'}</div>
     </div>`;
@@ -268,7 +278,7 @@
 
   function renderReplyPreview(rt) {
     if (!rt) return '';
-    const snippet = rt.snippet ? escapeHTML(rt.snippet) : (rt.snippetImage ? '🖼️ imagen' : '');
+    const snippet = rt.snippet ? escapeHTML(rt.snippet) : (rt.snippetImage ? '<svg class="ic ic-sm" aria-hidden="true"><use href="#i-image"/></svg> imagen' : '');
     return `<div class="msg-reply-preview" data-jump="${escapeHTML(rt.id || '')}" style="border-color:${escapeHTML(rt.authorColor || '#555')}">
       <span class="reply-name" style="color:${escapeHTML(rt.authorColor || '#aaa')}">↪ ${escapeHTML(rt.authorDisplayName || '')}</span>
       <span class="reply-snip">${snippet}</span>
@@ -285,6 +295,7 @@
     renderMessageInto(wrap, m);
     if (animate) wrap.style.animation = 'fadeIn .15s ease';
     list.appendChild(wrap);
+    tw(wrap);
     scrollToBottom();
   }
 
@@ -294,6 +305,7 @@
     const existing = list.querySelector(`[data-msg-id="${m.id}"]`);
     if (!existing) return appendMessage(m);
     renderMessageInto(existing, m);
+    tw(existing);
   }
 
   function renderMessageInto(wrap, m) {
@@ -306,7 +318,7 @@
     wrap.className = 'msg' + (isAction ? ' is-action' : '') + (isSystem ? ' is-system' : '') + (isMine ? ' is-mine' : '');
     const avatar = a.avatarUrl
       ? `<img src="${escapeHTML(a.avatarUrl)}" alt="" />`
-      : (a.bot ? '🤖' : escapeHTML((a.displayName || '?').charAt(0).toUpperCase()));
+      : (a.bot ? '<svg class="ic" aria-hidden="true" style="width:60%;height:60%"><use href="#i-bot"/></svg>' : escapeHTML((a.displayName || '?').charAt(0).toUpperCase()));
     const nameClass = `${a.anonymous ? 'msg-name anon' : 'msg-name clickable'} ${fontClass(a.nameFont)}`;
     const nameAttrs = a.anonymous ? '' : `data-username="${escapeHTML(a.username || '')}"`;
     const dClass = decoClass(a.decoration);
@@ -331,11 +343,11 @@
     }
     const actions = isDeleted ? '' : `
       <div class="msg-actions">
-        <button class="msg-act" data-act="react" title="Reaccionar">😊</button>
-        <button class="msg-act" data-act="reply" title="Responder">↪</button>
-        ${isMine && !isSystem && !isPoll ? '<button class="msg-act" data-act="edit" title="Editar">✏️</button>' : ''}
-        ${isMine ? '<button class="msg-act" data-act="delete" title="Borrar">🗑️</button>' : ''}
-        ${state.me && !isMine ? '<button class="msg-act" data-act="pin" title="Pinear en mi perfil">📌</button>' : ''}
+        <button class="msg-act" data-act="react" title="Reaccionar" aria-label="Reaccionar"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-smile"/></svg></button>
+        <button class="msg-act" data-act="reply" title="Responder" aria-label="Responder"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-reply"/></svg></button>
+        ${isMine && !isSystem && !isPoll ? '<button class="msg-act" data-act="edit" title="Editar" aria-label="Editar"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-edit"/></svg></button>' : ''}
+        ${isMine ? '<button class="msg-act" data-act="delete" title="Borrar" aria-label="Borrar"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-trash"/></svg></button>' : ''}
+        ${state.me && !isMine ? '<button class="msg-act" data-act="pin" title="Pinear en mi perfil" aria-label="Pinear"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-pin"/></svg></button>' : ''}
       </div>`;
     wrap.innerHTML = `
       <div class="msg-avatar ${dClass}" style="background:${escapeHTML(a.color || '#7c5cff')}">${avatar}</div>
@@ -356,7 +368,25 @@
     const a = m.author || {};
     if (!a.anonymous && a.username) {
       const nameEl = wrap.querySelector('.msg-name');
-      if (nameEl) nameEl.addEventListener('click', () => go(`/u/${a.username}`));
+      if (nameEl) {
+        // Bot: clicking the name inserts a mention into the composer
+        // (so users can talk to UbreBot with one tap, without typing @).
+        if (a.bot || a.username === 'ubrebot') {
+          nameEl.title = 'Mencionar a UbreBot';
+          nameEl.addEventListener('click', () => insertMention(a.displayName || 'UbreBot'));
+        } else {
+          nameEl.addEventListener('click', () => go(`/u/${a.username}`));
+        }
+      }
+      // Bot avatar also inserts the mention.
+      if (a.bot || a.username === 'ubrebot') {
+        const av = wrap.querySelector('.msg-avatar');
+        if (av) {
+          av.style.cursor = 'pointer';
+          av.title = 'Mencionar a UbreBot';
+          av.addEventListener('click', () => insertMention(a.displayName || 'UbreBot'));
+        }
+      }
     }
     const img = wrap.querySelector('.msg-image');
     if (img) img.addEventListener('click', () => window.open(m.imageUrl, '_blank'));
@@ -413,6 +443,7 @@
     picker.innerHTML = QUICK_REACTIONS.map((e) => `<button type="button" data-e="${escapeHTML(e)}">${escapeHTML(e)}</button>`).join('') +
       '<input type="text" class="emoji-input" placeholder="otro" maxlength="4" />';
     document.body.appendChild(picker);
+    tw(picker);
     const r = anchorBtn.getBoundingClientRect();
     picker.style.top = `${r.top + window.scrollY - picker.offsetHeight - 4}px`;
     picker.style.left = `${Math.min(window.innerWidth - 220, r.left)}px`;
@@ -457,7 +488,32 @@
     state.replyTo = m;
     state.editing = null;
     showComposerBanner();
-    $('#textInput').focus();
+    const ti = $('#textInput');
+    // If replying to UbreBot, prefix the mention so the bot actually sees it
+    // and answers. (Bot replies are gated by isMentioned() server-side.)
+    const a = m && m.author;
+    if (ti && a && (a.bot || a.username === 'ubrebot')) {
+      const cur = ti.value || '';
+      if (!/(^|\s)@ubrebot\b/i.test(cur)) {
+        ti.value = ('@UbreBot ' + cur).trimStart();
+      }
+    }
+    if (ti) {
+      ti.focus();
+      try { ti.setSelectionRange(ti.value.length, ti.value.length); } catch (_) { /* noop */ }
+    }
+  }
+  function insertMention(displayName) {
+    const ti = $('#textInput');
+    if (!ti) return;
+    const handle = (displayName || 'UbreBot').replace(/\s+/g, '');
+    const token = '@' + handle + ' ';
+    const cur = ti.value || '';
+    // If the same mention already at the start, just focus.
+    const re = new RegExp('(^|\\s)@' + handle + '\\b', 'i');
+    if (!re.test(cur)) ti.value = (token + cur).trimStart();
+    ti.focus();
+    try { ti.setSelectionRange(ti.value.length, ti.value.length); } catch (_) { /* noop */ }
   }
   function startEdit(m) {
     state.editing = m;
@@ -483,7 +539,7 @@
       banner.classList.remove('hidden');
     } else if (state.replyTo) {
       const rt = state.replyTo;
-      const snip = (rt.text || '').slice(0, 80) || (rt.imageUrl ? '🖼️ imagen' : '');
+      const snip = (rt.text || '').slice(0, 80) || (rt.imageUrl ? '<svg class="ic ic-sm" aria-hidden="true"><use href="#i-image"/></svg> imagen' : '');
       banner.innerHTML = `<span>Respondiendo a <b style="color:${escapeHTML(rt.author.color || '#fff')}">${escapeHTML(rt.author.displayName)}</b>: ${escapeHTML(snip)}</span><button type="button" id="cancelMode">×</button>`;
       banner.classList.remove('hidden');
     } else {
@@ -600,7 +656,7 @@
     const el = $('#onlineList');
     if (!el) return;
     const items = [...state.online.values()];
-    el.innerHTML = `<div class="online-count">🟢 ${items.length} en línea</div>` +
+    el.innerHTML = `<div class="online-count">${items.length} en línea</div>` +
       items.slice(0, 50).map((u) => `<div class="online-row ${u.username ? 'clickable' : ''}" data-username="${escapeHTML(u.username || '')}">
         <span class="online-dot" style="background:${escapeHTML(u.color || '#7c5cff')}"></span>
         <span class="online-name ${decoClass(u.decoration)}">${escapeHTML(u.displayName)}</span>
@@ -608,6 +664,7 @@
     el.querySelectorAll('.online-row.clickable').forEach((r) => {
       r.addEventListener('click', () => { const u = r.dataset.username; if (u) go(`/u/${u}`); });
     });
+    tw(el);
   }
 
   function showTyping(name) {
@@ -788,6 +845,13 @@
           if (ti) { ti.classList.add('hidden'); ti.innerHTML = ''; }
           appendMessage(data.botReply);
         }
+        // UbreBot is the AI bot; if Pusher delivered it before us, appendMessage
+        // dedupes via state.seen so this is safe.
+        if (data && data.ubreReply) {
+          const ti = $('#typingIndicator');
+          if (ti) { ti.classList.add('hidden'); ti.innerHTML = ''; }
+          appendMessage(data.ubreReply);
+        }
         // Track our own anon owner for self-recognition (own-message styling).
         if (data && data.message && data.message.anonOwner) {
           state.myAnonId = data.message.anonOwner;
@@ -884,9 +948,14 @@
         state.me = data.user;
         applyAuthUI();
         loadNotifications().catch(() => {});
-        loadServers().catch(() => {});
+        // Await loadServers before consumePendingInvite. Otherwise the GET
+        // /api/servers response could resolve *after* the join and clobber
+        // state.servers with a stale snapshot, dropping the freshly joined
+        // server from the rail.
+        await loadServers().catch(() => {});
         loadDms().catch(() => {});
         loadStickers().catch(() => {});
+        await consumePendingInvite();
         go('/');
       } catch (err) {
         errorEl.textContent = err.message;
@@ -911,9 +980,12 @@
         state.me = data.user;
         applyAuthUI();
         loadNotifications().catch(() => {});
-        loadServers().catch(() => {});
+        // See login handler — must await before consumePendingInvite to
+        // avoid clobbering state.servers with a pre-join snapshot.
+        await loadServers().catch(() => {});
         loadDms().catch(() => {});
         loadStickers().catch(() => {});
+        await consumePendingInvite();
         go('/');
       } catch (err) {
         errorEl.textContent = err.message;
@@ -970,8 +1042,10 @@
       `--banner-bg:${bannerBg};` +
       (user.bannerUrl ? `--banner-image:url('${user.bannerUrl.replace(/'/g, "\\'")}');` : '');
 
+    const editing = isMe && state.profileEditing;
+    if (!isMe) state.profileEditing = false;
     const bannerClass = user.bannerUrl ? 'profile-banner has-image' : 'profile-banner';
-    const profileClass = `profile effect-${effect}`;
+    const profileClass = `profile effect-${effect}${editing ? ' is-editing' : ''}`;
 
     const avatarTag = `<img class="profile-avatar" src="${escapeHTML(user.avatarUrl || avatarFallback(user.displayName))}" alt="" />`;
     const avatarFrameClasses = `avatar-frame ${decoration !== 'none' ? `deco-wrap deco-${decoration}` : ''}`;
@@ -986,35 +1060,344 @@
     }).join('');
     const bioHtml = renderBioMarkdown(user.bio || (isMe ? '_Edita tu perfil para añadir una bio._' : 'Sin bio.'));
 
+    const stats = user.stats || {};
+    const integ = user.integrations || { spotify: { connected: false }, brawlStars: { connected: false } };
+    const memberSince = user.createdAt ? new Date(user.createdAt) : null;
+    const memberSinceLabel = memberSince ? memberSince.toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
+
+    const editToggleBtn = isMe ? `
+      <button class="btn ${editing ? '' : 'btn-primary'} profile-edit-toggle" id="profileEditToggle">
+        <svg class="ic ic-sm" aria-hidden="true"><use href="#${editing ? 'i-eye' : 'i-edit'}"/></svg>
+        ${editing ? 'Volver al perfil' : 'Editar perfil'}
+      </button>` : '';
+
+    const bannerEditOverlay = (isMe && editing)
+      ? `<div class="profile-banner-edit"><label class="btn" for="bannerInput"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-camera"/></svg> Cambiar banner</label><input type="file" id="bannerInput" accept="image/*,image/gif" class="file-input" /></div>`
+      : '';
+
+    const avatarEditOverlay = (isMe && editing)
+      ? `<label class="avatar-edit-fab" for="avatarInput" title="Cambiar foto"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-camera"/></svg><input type="file" id="avatarInput" accept="image/*,image/gif" class="file-input" /></label>`
+      : '';
+
+    const shareRow = isMe ? `
+      <div class="profile-share-row">
+        <button class="btn btn-ghost btn-sm" id="copyProfileLink"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-link"/></svg> Copiar enlace</button>
+      </div>` : (state.me ? `
+      <div class="profile-share-row">
+        <button class="btn btn-primary btn-sm" id="profileSendDmBtn"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-message"/></svg> Enviar DM</button>
+        <button class="btn btn-ghost btn-sm" id="copyProfileLink"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-link"/></svg> Copiar enlace</button>
+      </div>` : '');
+
     container.innerHTML = `
       <div class="${profileClass}" style="${styleVars}">
+        ${editToggleBtn}
         <div class="${bannerClass}">
-          ${isMe ? `<div class="profile-banner-edit"><label class="btn" for="bannerInput">📷 Cambiar banner</label><input type="file" id="bannerInput" accept="image/*,image/gif" class="file-input" /></div>` : ''}
+          <div class="profile-banner-aura" aria-hidden="true"></div>
+          ${bannerEditOverlay}
         </div>
         <div class="profile-head">
-          <div class="${avatarFrameClasses}">${avatarTag}</div>
+          <div class="avatar-halo ${decoration !== 'none' ? `deco-halo-${decoration}` : ''}">
+            <div class="${avatarFrameClasses}">${avatarTag}${avatarEditOverlay}</div>
+          </div>
           <div class="profile-info">
-            ${user.title ? `<div class="title-badge">${escapeHTML(user.title)}</div>` : ''}
+            ${user.title ? `<div class="title-badge"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-zap"/></svg>${escapeHTML(user.title)}</div>` : ''}
             <h2 class="${fontClass(user.nameFont)}" style="color:${escapeHTML(accent)}">${escapeHTML(user.displayName)} ${pronounsHtml}</h2>
             <div class="handle">@${escapeHTML(user.username)}</div>
+            <div class="profile-meta-row">
+              ${memberSinceLabel ? `<span class="meta-chip"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-calendar"/></svg>Miembro desde ${escapeHTML(memberSinceLabel)}</span>` : ''}
+              <span class="meta-chip"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-message"/></svg>${stats.messages || 0} msgs</span>
+              ${stats.reactionsReceived ? `<span class="meta-chip"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-flame"/></svg>${stats.reactionsReceived} reacciones</span>` : ''}
+            </div>
             ${statusHtml}
           </div>
         </div>
-        ${isMe ? `<div class="profile-actions">
-          <label class="btn btn-primary" for="avatarInput">📸 Cambiar foto</label>
-          <input type="file" id="avatarInput" accept="image/*,image/gif" class="file-input" />
-          <button class="btn" id="copyProfileLink">🔗 Copiar enlace</button>
-        </div>` : ''}
+        ${shareRow}
         <div class="profile-bio">${bioHtml}</div>
         ${linksHtml ? `<div class="profile-links">${linksHtml}</div>` : ''}
-        <div id="pinnedSection" class="profile-pins"><h3>📌 Mensajes destacados</h3><div id="pinnedMessages" class="muted">Cargando…</div></div>
-        <div id="achievementsSection" class="profile-achievements"><h3>🏆 Logros</h3><div id="achievementsGrid" class="achievement-grid"></div></div>
-        ${isMe ? renderEditor(user) : ''}
+        <div class="profile-stats-grid">
+          <div class="stat-card"><div class="stat-icon"><svg class="ic" aria-hidden="true"><use href="#i-message"/></svg></div><div class="stat-num">${stats.messages || 0}</div><div class="stat-label">Mensajes</div></div>
+          <div class="stat-card"><div class="stat-icon"><svg class="ic" aria-hidden="true"><use href="#i-image"/></svg></div><div class="stat-num">${stats.images || 0}</div><div class="stat-label">Imágenes</div></div>
+          <div class="stat-card"><div class="stat-icon"><svg class="ic" aria-hidden="true"><use href="#i-mic"/></svg></div><div class="stat-num">${stats.voiceNotes || 0}</div><div class="stat-label">Notas de voz</div></div>
+          <div class="stat-card"><div class="stat-icon"><svg class="ic" aria-hidden="true"><use href="#i-bar-chart"/></svg></div><div class="stat-num">${stats.polls || 0}</div><div class="stat-label">Encuestas</div></div>
+          <div class="stat-card"><div class="stat-icon"><svg class="ic" aria-hidden="true"><use href="#i-flame"/></svg></div><div class="stat-num">${stats.reactionsReceived || 0}</div><div class="stat-label">Reacciones</div></div>
+          <div class="stat-card"><div class="stat-icon"><svg class="ic" aria-hidden="true"><use href="#i-trophy"/></svg></div><div class="stat-num">${(user.achievements || []).length}</div><div class="stat-label">Logros</div></div>
+        </div>
+        <div class="profile-integrations" id="profileIntegrations">
+          ${renderSpotifyCard(integ.spotify, user.username, isMe)}
+          ${renderBrawlStarsCard(integ.brawlStars, isMe)}
+        </div>
+        <div id="pinnedSection" class="profile-pins"><h3><svg class="ic ic-sm" aria-hidden="true"><use href="#i-pin"/></svg> Mensajes destacados</h3><div id="pinnedMessages" class="muted">Cargando…</div></div>
+        <div id="achievementsSection" class="profile-achievements"><h3><svg class="ic ic-sm" aria-hidden="true"><use href="#i-trophy"/></svg> Logros</h3><div id="achievementsGrid" class="achievement-grid"></div></div>
+        ${editing ? renderEditor(user) : ''}
       </div>`;
+    tw(container);
+
+    // CSP-safe image fallbacks: hide BS CDN images that fail to load. Inline
+    // onerror= attributes would be silently dropped by our CSP (no
+    // 'unsafe-inline' on script-src).
+    container.querySelectorAll('img.bs-player-icon, img.bs-brawler-img').forEach((img) => {
+      img.onerror = () => { img.style.display = 'none'; };
+    });
+
+    if (isMe) {
+      const editBtn = $('#profileEditToggle');
+      if (editBtn) editBtn.addEventListener('click', () => {
+        state.profileEditing = !state.profileEditing;
+        renderProfileView();
+        if (state.profileEditing) {
+          // scroll editor into view so it's obvious where to edit
+          setTimeout(() => {
+            const ed = $('.profile-section');
+            if (ed) ed.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 0);
+        } else {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      });
+    }
 
     loadPinnedMessages(user.username).catch(() => {});
     renderAchievements(user);
-    if (isMe) wireEditor(user);
+    loadSpotifyNowPlaying(user.username).catch(() => {});
+    if (isMe) {
+      if (editing) wireEditor(user);
+      wireIntegrations();
+      // Avatar / banner inputs only exist while editing.
+      const avatarIn = $('#avatarInput');
+      if (avatarIn) avatarIn.addEventListener('change', (e) => uploadProfileMedia(e.target, 'avatar'));
+      const bannerIn = $('#bannerInput');
+      if (bannerIn) bannerIn.addEventListener('change', (e) => uploadProfileMedia(e.target, 'banner'));
+    }
+    const copyBtn = $('#copyProfileLink');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(`${location.origin}/u/${user.username}`);
+          copyBtn.innerHTML = '<svg class="ic ic-sm" aria-hidden="true"><use href="#i-check"/></svg> Copiado';
+          setTimeout(() => { copyBtn.innerHTML = '<svg class="ic ic-sm" aria-hidden="true"><use href="#i-link"/></svg> Copiar enlace'; }, 1200);
+        } catch (_e) { /* ignore */ }
+      });
+    }
+    const dmBtn = $('#profileSendDmBtn');
+    if (dmBtn) {
+      dmBtn.addEventListener('click', async () => {
+        try {
+          await openDm(user.username);
+          await loadDms();
+        } catch (e) { alert('Error: ' + e.message); }
+      });
+    }
+    handleSpotifyCallbackToast();
+  }
+
+  // ------- Integrations rendering -------
+  function renderSpotifyCard(sp, username, isMe) {
+    if (!sp || !sp.connected) {
+      if (!isMe) return '';
+      return `<div class="integ-card integ-spotify is-empty">
+        <div class="integ-head"><svg class="ic" aria-hidden="true"><use href="#i-music"/></svg><span>Spotify</span></div>
+        <p class="muted" style="margin:6px 0 12px">Conectá tu cuenta para mostrar lo que estás escuchando.</p>
+        <a class="btn btn-spotify" href="/api/integrations/spotify/connect"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-music"/></svg> Conectar Spotify</a>
+      </div>`;
+    }
+    return `<div class="integ-card integ-spotify" data-username="${escapeHTML(username)}">
+      <div class="integ-head"><svg class="ic" aria-hidden="true"><use href="#i-music"/></svg><span>Spotify</span>
+        ${sp.profileUrl ? `<a class="integ-badge" href="${escapeHTML(sp.profileUrl)}" target="_blank" rel="noopener">${escapeHTML(sp.displayName || 'Perfil')}</a>` : ''}
+      </div>
+      <div class="integ-body" id="spotifyNowPlaying">
+        <div class="muted">Cargando…</div>
+      </div>
+      ${isMe ? `<div class="integ-foot">
+        <button class="btn btn-ghost btn-sm" id="spotifyDisconnect"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-link-off"/></svg> Desconectar</button>
+      </div>` : ''}
+    </div>`;
+  }
+
+  function renderBrawlStarsCard(bs, isMe) {
+    if (!bs || !bs.connected) {
+      if (!isMe) return '';
+      return `<div class="integ-card integ-bs is-empty">
+        <div class="integ-head"><svg class="ic" aria-hidden="true"><use href="#i-gamepad"/></svg><span>Brawl Stars</span></div>
+        <p class="muted" style="margin:6px 0 12px">Pegá tu tag (ej: <code>#YYY1234</code>) para mostrar tus trofeos, club y mejores brawlers.</p>
+        <form id="bsConnectForm" class="bs-connect-row">
+          <input type="text" id="bsTagInput" placeholder="#YOURTAG" maxlength="16" autocomplete="off" />
+          <button class="btn btn-bs" type="submit"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-gamepad"/></svg> Conectar</button>
+        </form>
+        <p class="form-error" id="bsError"></p>
+      </div>`;
+    }
+    const trophyPct = bs.highestTrophies > 0 ? Math.min(100, Math.round((bs.trophies / bs.highestTrophies) * 100)) : 0;
+    const playerIcon = bs.iconId
+      ? `<img class="bs-player-icon" src="https://cdn.brawlify.com/profile-icons/regular/${bs.iconId}.png" alt="" loading="lazy" />`
+      : `<div class="bs-player-icon bs-icon-fallback"><svg class="ic" aria-hidden="true"><use href="#i-gamepad"/></svg></div>`;
+
+    const topBrawlers = Array.isArray(bs.topBrawlers) ? bs.topBrawlers : [];
+    const topBrawlersHtml = topBrawlers.slice(0, 3).map((b, i) => {
+      const slug = String(b.name || '').toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      const img = slug
+        ? `<img class="bs-brawler-img" src="https://cdn.brawlify.com/brawlers/borderless/${slug}.png" alt="" loading="lazy" />`
+        : '';
+      const rankBadge = b.rank ? `<span class="bs-brawler-rank" data-rank="${Math.min(35, b.rank)}">R${b.rank}</span>` : '';
+      const medal = ['gold', 'silver', 'bronze'][i] || '';
+      return `<div class="bs-brawler-card ${medal ? `is-${medal}` : ''}">
+        <div class="bs-brawler-medal">${i + 1}</div>
+        <div class="bs-brawler-img-wrap">${img}</div>
+        <div class="bs-brawler-name">${escapeHTML(b.name || '?')}</div>
+        <div class="bs-brawler-meta">
+          <span class="bs-brawler-trophies"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-trophy"/></svg>${b.trophies}</span>
+          <span class="bs-brawler-power" title="Power level">⚡${b.power}</span>
+        </div>
+        ${rankBadge}
+      </div>`;
+    }).join('');
+
+    const clubHtml = bs.club && bs.club.name
+      ? `<div class="bs-club">
+          <svg class="ic ic-sm" aria-hidden="true"><use href="#i-shield"/></svg>
+          <span class="bs-club-label">Club</span>
+          <strong>${escapeHTML(bs.club.name)}</strong>
+        </div>`
+      : '';
+
+    return `<div class="integ-card integ-bs">
+      <div class="integ-head"><svg class="ic" aria-hidden="true"><use href="#i-gamepad"/></svg><span>Brawl Stars</span>
+        <span class="integ-badge">${escapeHTML(bs.tag)}</span>
+      </div>
+      <div class="integ-body">
+        <div class="bs-hero">
+          <div class="bs-hero-icon">${playerIcon}<span class="bs-hero-level">Lv ${bs.expLevel}</span></div>
+          <div class="bs-hero-info">
+            <div class="bs-name">${escapeHTML(bs.name || '')}</div>
+            <div class="bs-hero-trophies">
+              <svg class="ic" aria-hidden="true"><use href="#i-trophy"/></svg>
+              <span class="bs-hero-trophies-num">${bs.trophies.toLocaleString('es-MX')}</span>
+              <span class="bs-hero-trophies-label">trofeos</span>
+            </div>
+            <div class="bs-progress" title="Trofeos actuales / récord histórico">
+              <div class="bs-progress-bar" style="width:${trophyPct}%"></div>
+              <div class="bs-progress-meta"><span>${bs.trophies.toLocaleString('es-MX')}</span><span>récord ${bs.highestTrophies.toLocaleString('es-MX')}</span></div>
+            </div>
+          </div>
+        </div>
+        ${topBrawlersHtml ? `<div class="bs-top-brawlers"><div class="bs-section-title">Top brawlers</div><div class="bs-brawlers-row">${topBrawlersHtml}</div></div>` : ''}
+        <div class="bs-stats">
+          <div class="bs-stat"><div class="bs-stat-num">${bs.brawlersUnlocked}</div><div class="bs-stat-label"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-shield"/></svg>Brawlers</div></div>
+          <div class="bs-stat"><div class="bs-stat-num">${bs.threeVsThreeVictories || 0}</div><div class="bs-stat-label"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-flame"/></svg>3v3</div></div>
+          <div class="bs-stat"><div class="bs-stat-num">${bs.soloVictories || 0}</div><div class="bs-stat-label"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-zap"/></svg>Solo</div></div>
+          <div class="bs-stat"><div class="bs-stat-num">${bs.duoVictories || 0}</div><div class="bs-stat-label"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-message"/></svg>Dúo</div></div>
+        </div>
+        ${clubHtml}
+      </div>
+      ${isMe ? `<div class="integ-foot">
+        <button class="btn btn-ghost btn-sm" id="bsRefresh"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-zap"/></svg> Actualizar</button>
+        <button class="btn btn-ghost btn-sm" id="bsDisconnect"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-link-off"/></svg> Desconectar</button>
+      </div>` : ''}
+    </div>`;
+  }
+
+  async function loadSpotifyNowPlaying(username) {
+    const target = $('#spotifyNowPlaying');
+    if (!target) return;
+    try {
+      const data = await api(`/api/integrations/spotify/now-playing/${encodeURIComponent(username)}`);
+      if (!data.connected || !data.track) {
+        target.innerHTML = '<div class="np-empty"><div class="np-empty-ic"><svg class="ic" aria-hidden="true"><use href="#i-music"/></svg></div><div class="np-empty-text"><strong>Nada sonando</strong><span class="muted">Cuando empiece a reproducir algo, se mostrará acá.</span></div></div>';
+        return;
+      }
+      const t = data.track;
+      const artists = (t.artists || []).map((a) => escapeHTML(a.name)).join(', ');
+      const cover = t.album && t.album.image ? `<img class="np-cover" src="${escapeHTML(t.album.image)}" alt="" />` : '';
+      const playingChip = data.isPlaying
+        ? '<span class="np-chip is-live"><span class="np-dot"></span> Sonando ahora</span>'
+        : '<span class="np-chip">Última escuchada</span>';
+      const embed = t.id
+        ? `<iframe class="np-embed" src="https://open.spotify.com/embed/track/${encodeURIComponent(t.id)}?utm_source=generator&theme=0" width="100%" height="80" frameborder="0" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture" loading="lazy"></iframe>`
+        : '';
+      const album = t.album && t.album.name ? `<div class="np-album">${escapeHTML(t.album.name)}</div>` : '';
+      target.innerHTML = `
+        <div class="np">
+          ${cover}
+          <div class="np-meta">
+            ${playingChip}
+            <a class="np-title" href="${escapeHTML(t.url || '#')}" target="_blank" rel="noopener">${escapeHTML(t.name)}</a>
+            <div class="np-artist">${artists}</div>
+            ${album}
+          </div>
+        </div>
+        ${embed}
+        <div class="np-actions">
+          ${t.url ? `<a class="btn btn-spotify btn-sm" href="${escapeHTML(t.url)}" target="_blank" rel="noopener"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-music"/></svg> Abrir en Spotify</a>` : ''}
+        </div>`;
+    } catch (e) {
+      target.innerHTML = `<div class="muted">No se pudo cargar Spotify.</div>`;
+    }
+  }
+
+  function wireIntegrations() {
+    // Spotify disconnect
+    const spDisc = $('#spotifyDisconnect');
+    if (spDisc) {
+      spDisc.addEventListener('click', async () => {
+        try {
+          await api('/api/integrations/spotify/disconnect', { method: 'POST', body: {} });
+          const r = await api(`/api/users/${encodeURIComponent(state.me.username)}`);
+          state.me = { ...state.me, integrations: r.user.integrations };
+          renderProfileView();
+        } catch (err) { alert(err.message); }
+      });
+    }
+    // BS connect form
+    const bsForm = $('#bsConnectForm');
+    if (bsForm) {
+      bsForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const tag = $('#bsTagInput').value.trim();
+        const errorEl = $('#bsError');
+        errorEl.textContent = '';
+        try {
+          await api('/api/integrations/brawlstars/connect', { method: 'POST', body: { tag } });
+          const r = await api(`/api/users/${encodeURIComponent(state.me.username)}`);
+          state.me = { ...state.me, integrations: r.user.integrations };
+          renderProfileView();
+        } catch (err) { errorEl.textContent = err.message; }
+      });
+    }
+    // BS refresh / disconnect
+    const bsRefresh = $('#bsRefresh');
+    if (bsRefresh) {
+      bsRefresh.addEventListener('click', async () => {
+        try {
+          await api('/api/integrations/brawlstars/refresh', { method: 'POST', body: {} });
+          const r = await api(`/api/users/${encodeURIComponent(state.me.username)}`);
+          state.me = { ...state.me, integrations: r.user.integrations };
+          renderProfileView();
+        } catch (err) { alert(err.message); }
+      });
+    }
+    const bsDisc = $('#bsDisconnect');
+    if (bsDisc) {
+      bsDisc.addEventListener('click', async () => {
+        try {
+          await api('/api/integrations/brawlstars/disconnect', { method: 'POST', body: {} });
+          const r = await api(`/api/users/${encodeURIComponent(state.me.username)}`);
+          state.me = { ...state.me, integrations: r.user.integrations };
+          renderProfileView();
+        } catch (err) { alert(err.message); }
+      });
+    }
+  }
+
+  function handleSpotifyCallbackToast() {
+    const params = new URLSearchParams(location.search);
+    const sp = params.get('spotify');
+    if (!sp) return;
+    if (sp === 'ok') {
+      console.log('Spotify conectado.');
+    } else {
+      console.warn('Spotify: ' + (params.get('reason') || sp));
+    }
+    // clean url
+    history.replaceState({}, '', location.pathname);
   }
 
   const ACHIEVEMENT_META = {
@@ -1046,6 +1429,7 @@
         </div>
       </div>`;
     }).join('');
+    tw(grid);
   }
 
   async function loadPinnedMessages(username) {
@@ -1095,7 +1479,7 @@
       <div class="link-row" data-i="${i}">
         <input class="link-label" placeholder="Etiqueta" maxlength="30" value="${escapeHTML(l.label || '')}" />
         <input class="link-url" placeholder="https://…" maxlength="200" value="${escapeHTML(l.url || '')}" />
-        <button type="button" class="btn btn-ghost link-del" title="Quitar">✕</button>
+        <button type="button" class="btn btn-ghost link-del" title="Quitar" aria-label="Quitar"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-x"/></svg></button>
       </div>`).join('');
 
     return `
@@ -1244,7 +1628,7 @@
       div.innerHTML = `
         <input class="link-label" placeholder="Etiqueta" maxlength="30" />
         <input class="link-url" placeholder="https://…" maxlength="200" />
-        <button type="button" class="btn btn-ghost link-del" title="Quitar">✕</button>`;
+        <button type="button" class="btn btn-ghost link-del" title="Quitar" aria-label="Quitar"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-x"/></svg></button>`;
       linksEditor.appendChild(div);
     });
     linksEditor.addEventListener('click', (e) => {
@@ -1279,26 +1663,15 @@
           },
         });
         state.me = data.user;
+        state.profileEditing = false;        // auto-return to view mode after save
         applyAuthUI();
         renderProfileView();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       } catch (err) {
         errorEl.textContent = err.message;
       }
     });
 
-    $('#avatarInput').addEventListener('change', (e) => uploadProfileMedia(e.target, 'avatar'));
-    $('#bannerInput').addEventListener('change', (e) => uploadProfileMedia(e.target, 'banner'));
-
-    const copyBtn = $('#copyProfileLink');
-    if (copyBtn) {
-      copyBtn.addEventListener('click', async () => {
-        try {
-          await navigator.clipboard.writeText(`${location.origin}/u/${user.username}`);
-          copyBtn.textContent = '✓ Copiado';
-          setTimeout(() => { copyBtn.textContent = '🔗 Copiar enlace'; }, 1200);
-        } catch (_e) { /* ignore */ }
-      });
-    }
   }
 
   async function uploadProfileMedia(input, kind) {
@@ -1350,14 +1723,8 @@
     if (!state.activeServer) { wrap.classList.add('hidden'); return; }
     wrap.classList.remove('hidden');
     $('#activeServerName').textContent = state.activeServer.name;
-    const inv = $('#inviteCode');
-    if (inv) {
-      inv.textContent = state.activeServer.inviteCode || '';
-      inv.onclick = () => {
-        if (!state.activeServer.inviteCode) return;
-        navigator.clipboard.writeText(state.activeServer.inviteCode).then(() => flashToast('C\u00f3digo copiado'));
-      };
-    }
+    const inviteBtn = $('#inviteShareBtn');
+    if (inviteBtn) inviteBtn.onclick = () => openInviteShareModal(state.activeServer);
     const channels = state.activeServer.channels || [];
     const wrap2 = $('#channels');
     wrap2.innerHTML = channels.map((c) => `<div class="channel-row ${c.id === state.activeChannel ? 'active' : ''}" data-channel="${escapeHTML(c.id)}"><span class="hash">#</span> ${escapeHTML(c.name)}</div>`).join('');
@@ -1437,26 +1804,196 @@
       pres.bind('client-typing', (data) => showTyping(data && data.displayName));
     }
   }
+  // ----- Modal helpers -----
+  function showModal(id) {
+    const m = $(id);
+    if (m) m.classList.remove('hidden');
+  }
+  function hideModal(id) {
+    const m = $(id);
+    if (m) m.classList.add('hidden');
+  }
+  function bindModalDismiss(backdropId, closeBtnId) {
+    const backdrop = $(backdropId);
+    const close = $(closeBtnId);
+    if (close) close.onclick = () => hideModal(backdropId);
+    if (backdrop) backdrop.addEventListener('click', (e) => {
+      if (e.target === backdrop) hideModal(backdropId);
+    });
+  }
+
   function openServerCreateModal() {
     if (!state.me) { alert('Inicia sesi\u00f3n para crear / unirte a un server'); return; }
-    const choice = prompt('1) Crear nuevo server\n2) Unirme con c\u00f3digo de invitaci\u00f3n\n\nElige 1 o 2:');
-    if (choice === '1') {
-      const name = prompt('Nombre del server:');
-      if (!name) return;
-      const icon = prompt('Icono (1 emoji o letra, opcional):') || '';
-      api('/api/servers', { method: 'POST', body: { name, icon } })
-        .then((r) => { state.servers.push(r.server); switchServer(r.server.id); })
-        .catch((e) => alert('Error: ' + e.message));
-    } else if (choice === '2') {
-      const code = prompt('C\u00f3digo de invitaci\u00f3n:');
-      if (!code) return;
-      api('/api/servers/join', { method: 'POST', body: { code } })
-        .then((r) => {
-          if (!state.servers.some((s) => s.id === r.server.id)) state.servers.push(r.server);
-          switchServer(r.server.id);
-        })
-        .catch((e) => alert('Error: ' + e.message));
+    const setActiveTab = (which) => {
+      $$('#serverModal .modal-tab').forEach((b) => b.classList.toggle('active', b.dataset.tab === which));
+      $$('#serverModal .modal-tab-panel').forEach((p) => p.classList.toggle('hidden', p.dataset.panel !== which));
+    };
+    setActiveTab('create');
+    $$('#serverModal .modal-tab').forEach((b) => b.onclick = () => setActiveTab(b.dataset.tab));
+    const nameI = $('#srvCreateName'); if (nameI) nameI.value = '';
+    const iconI = $('#srvCreateIcon'); if (iconI) iconI.value = '';
+    const codeI = $('#srvJoinCode'); if (codeI) codeI.value = '';
+    const cErr = $('#srvCreateError'); if (cErr) cErr.textContent = '';
+    const jErr = $('#srvJoinError'); if (jErr) jErr.textContent = '';
+    const cBtn = $('#srvCreateBtn');
+    if (cBtn) cBtn.onclick = async () => {
+      const name = (nameI && nameI.value || '').trim();
+      const icon = (iconI && iconI.value || '').trim();
+      if (!name) { if (cErr) cErr.textContent = 'Pon\u00e9 un nombre'; return; }
+      cBtn.disabled = true;
+      try {
+        const r = await api('/api/servers', { method: 'POST', body: { name, icon } });
+        state.servers.push(r.server);
+        hideModal('#serverModal');
+        switchServer(r.server.id);
+        // Open the invite-share modal so the user can immediately share the link.
+        setTimeout(() => openInviteShareModal(r.server), 200);
+      } catch (e) { if (cErr) cErr.textContent = 'Error: ' + e.message; }
+      cBtn.disabled = false;
+    };
+    const jBtn = $('#srvJoinBtn');
+    if (jBtn) jBtn.onclick = async () => {
+      const code = (codeI && codeI.value || '').trim();
+      if (!code) { if (jErr) jErr.textContent = 'Pon\u00e9 el c\u00f3digo o link'; return; }
+      jBtn.disabled = true;
+      try {
+        const r = await api('/api/servers/join', { method: 'POST', body: { code } });
+        if (!state.servers.some((s) => s.id === r.server.id)) state.servers.push(r.server);
+        hideModal('#serverModal');
+        switchServer(r.server.id);
+        flashToast(`Te uniste a ${r.server.name}`);
+      } catch (e) { if (jErr) jErr.textContent = 'Error: ' + e.message; }
+      jBtn.disabled = false;
+    };
+    bindModalDismiss('#serverModal', '#serverModalClose');
+    showModal('#serverModal');
+    setTimeout(() => nameI && nameI.focus(), 50);
+  }
+
+  function openInviteShareModal(server) {
+    if (!server || !server.inviteCode) {
+      flashToast('Este server no tiene invitaci\u00f3n');
+      return;
     }
+    const url = `${location.origin}/invite/${server.inviteCode}`;
+    const nameEl = $('#inviteShareName'); if (nameEl) nameEl.textContent = server.name;
+    const urlEl = $('#inviteShareUrl'); if (urlEl) urlEl.value = url;
+    const codeEl = $('#inviteShareCode'); if (codeEl) codeEl.textContent = server.inviteCode;
+    const copyBtn = $('#inviteShareCopyBtn');
+    if (copyBtn) copyBtn.onclick = () => {
+      if (urlEl) { urlEl.select(); urlEl.setSelectionRange(0, 999); }
+      navigator.clipboard.writeText(url)
+        .then(() => flashToast('Link copiado'))
+        .catch(() => flashToast('No se pudo copiar'));
+    };
+    const nativeBtn = $('#inviteShareNativeBtn');
+    if (nativeBtn) {
+      const canShare = typeof navigator.share === 'function';
+      nativeBtn.style.display = canShare ? '' : 'none';
+      nativeBtn.onclick = () => {
+        navigator.share({ title: `Únete a ${server.name}`, text: `Te invito a ${server.name} en Foro34`, url })
+          .catch(() => {});
+      };
+    }
+    const waBtn = $('#inviteShareWhatsappBtn');
+    if (waBtn) waBtn.onclick = () => {
+      const text = encodeURIComponent(`Te invito a ${server.name} en Foro34: ${url}`);
+      window.open(`https://wa.me/?text=${text}`, '_blank', 'noopener');
+    };
+    bindModalDismiss('#inviteShareModal', '#inviteShareClose');
+    showModal('#inviteShareModal');
+  }
+
+  async function openInvitePreview(code) {
+    // The /invite/:code route has no matching .view section, so dismissing
+    // the modal would leave the user on a blank page. Bind a custom
+    // backdrop handler that also navigates home, instead of using the
+    // generic bindModalDismiss helper.
+    const backdrop = $('#invitePreviewModal');
+    if (backdrop) {
+      backdrop.onclick = (e) => {
+        if (e.target !== backdrop) return;
+        hideModal('#invitePreviewModal');
+        go('/', true);
+      };
+    }
+    const content = $('#invitePreviewContent');
+    if (!content) return;
+    content.innerHTML = '<p class="muted" style="text-align:center;padding:20px">Cargando…</p>';
+    showModal('#invitePreviewModal');
+    let invite = null;
+    try {
+      const r = await api(`/api/servers/invite/${encodeURIComponent(code)}`);
+      invite = r.invite;
+    } catch (e) {
+      content.innerHTML = `
+        <div class="invite-preview-error">
+          <h3>Invitación no válida</h3>
+          <p class="muted">El link expiró o ya no existe.</p>
+          <button class="btn btn-primary" id="invitePreviewBack">Volver al inicio</button>
+        </div>`;
+      const back = $('#invitePreviewBack');
+      if (back) back.onclick = () => { hideModal('#invitePreviewModal'); go('/', true); };
+      return;
+    }
+    if (!state.me) {
+      content.innerHTML = `
+        <div class="invite-preview-card">
+          <div class="invite-preview-icon">${escapeHTML(invite.icon || invite.name.charAt(0).toUpperCase())}</div>
+          <h3>${escapeHTML(invite.name)}</h3>
+          <p class="muted"><strong>${invite.memberCount}</strong> miembro${invite.memberCount === 1 ? '' : 's'} · <strong>${invite.channelCount}</strong> canal${invite.channelCount === 1 ? '' : 'es'}</p>
+          <p>Iniciá sesión o creá una cuenta para unirte.</p>
+          <div class="invite-preview-actions">
+            <button class="btn btn-primary" id="invitePreviewLogin">Iniciar sesión</button>
+            <button class="btn btn-ghost" id="invitePreviewRegister">Crear cuenta</button>
+          </div>
+        </div>`;
+      const login = $('#invitePreviewLogin');
+      const reg = $('#invitePreviewRegister');
+      // Stash the code so we auto-join after auth.
+      try { sessionStorage.setItem('pendingInviteCode', code); } catch (_) { /* sessionStorage unavailable */ }
+      if (login) login.onclick = () => { hideModal('#invitePreviewModal'); go('/login'); };
+      if (reg) reg.onclick = () => { hideModal('#invitePreviewModal'); go('/register'); };
+      return;
+    }
+    // Already a member?
+    const existing = state.servers.find((s) => s.id === invite.serverId);
+    if (existing) {
+      hideModal('#invitePreviewModal');
+      switchServer(existing.id);
+      go('/', true);
+      flashToast(`Ya sos miembro de ${invite.name}`);
+      return;
+    }
+    content.innerHTML = `
+      <div class="invite-preview-card">
+        <div class="invite-preview-icon">${escapeHTML(invite.icon || invite.name.charAt(0).toUpperCase())}</div>
+        <h3>${escapeHTML(invite.name)}</h3>
+        <p class="muted"><strong>${invite.memberCount}</strong> miembro${invite.memberCount === 1 ? '' : 's'} · <strong>${invite.channelCount}</strong> canal${invite.channelCount === 1 ? '' : 'es'}</p>
+        <div class="invite-preview-actions">
+          <button class="btn btn-primary" id="invitePreviewJoin">Unirme</button>
+          <button class="btn btn-ghost" id="invitePreviewCancel">Cancelar</button>
+        </div>
+        <p class="form-error" id="invitePreviewError"></p>
+      </div>`;
+    const cancel = $('#invitePreviewCancel');
+    if (cancel) cancel.onclick = () => { hideModal('#invitePreviewModal'); go('/', true); };
+    const join = $('#invitePreviewJoin');
+    if (join) join.onclick = async () => {
+      join.disabled = true;
+      try {
+        const r = await api('/api/servers/join', { method: 'POST', body: { code } });
+        if (!state.servers.some((s) => s.id === r.server.id)) state.servers.push(r.server);
+        hideModal('#invitePreviewModal');
+        switchServer(r.server.id);
+        go('/', true);
+        flashToast(`Te uniste a ${r.server.name}`);
+      } catch (e) {
+        const err = $('#invitePreviewError');
+        if (err) err.textContent = 'Error: ' + e.message;
+        join.disabled = false;
+      }
+    };
   }
   function openCreateChannelPrompt() {
     if (!state.activeServer) return;
@@ -1537,15 +2074,90 @@
   }
   function setupDmControls() {
     const btn = $('#newDmBtn');
-    if (btn) btn.addEventListener('click', async () => {
-      const q = prompt('Username de la persona:');
-      if (!q) return;
+    if (btn) btn.addEventListener('click', () => openDmPicker());
+  }
+
+  // Live-search modal to start a DM. Replaces the old prompt() flow with a
+  // proper picker that hits /api/users?q=... so users don't need to know the
+  // exact username up front.
+  function openDmPicker() {
+    if (!state.me) { alert('Inicia sesi\u00f3n para enviar DMs'); return; }
+    const input = $('#dmPickerInput');
+    const results = $('#dmPickerResults');
+    if (!input || !results) return;
+    input.value = '';
+    results.innerHTML = '<p class="muted" style="padding:14px;text-align:center">Empez\u00e1 a escribir un username…</p>';
+    let lastQuery = '';
+    let debounceT = null;
+    const runSearch = async (q) => {
+      if (q === lastQuery) return;
+      lastQuery = q;
+      if (q.length < 2) {
+        results.innerHTML = '<p class="muted" style="padding:14px;text-align:center">Escrib\u00ed al menos 2 letras…</p>';
+        return;
+      }
       try {
-        await api(`/api/dms/with/${encodeURIComponent(q.trim().toLowerCase())}`, { method: 'POST' });
-        await openDm(q.trim().toLowerCase());
-        await loadDms();
-      } catch (e) { alert('Error: ' + e.message); }
-    });
+        const r = await api(`/api/users?q=${encodeURIComponent(q)}`);
+        const users = (r.users || []).filter((u) => u.username !== (state.me && state.me.username));
+        if (!users.length) {
+          results.innerHTML = '<p class="muted" style="padding:14px;text-align:center">Sin resultados</p>';
+          return;
+        }
+        results.innerHTML = users.map((u) => {
+          const av = u.avatarUrl
+            ? `<img src="${escapeHTML(u.avatarUrl)}" alt="" />`
+            : escapeHTML((u.displayName || u.username || '?').charAt(0).toUpperCase());
+          return `<button class="dm-picker-row" data-username="${escapeHTML(u.username)}">
+            <span class="av" style="background:${escapeHTML(u.color || '#7c5cff')}">${av}</span>
+            <span class="info">
+              <span class="name">${escapeHTML(u.displayName || u.username)}</span>
+              <span class="handle muted">@${escapeHTML(u.username)}</span>
+            </span>
+          </button>`;
+        }).join('');
+        results.querySelectorAll('.dm-picker-row').forEach((row) => {
+          row.addEventListener('click', async () => {
+            const uname = row.dataset.username;
+            try {
+              await openDm(uname);
+              await loadDms();
+              hideModal('#dmPickerModal');
+            } catch (e) { alert('Error: ' + e.message); }
+          });
+        });
+        // Avatars that 404 should not blast a broken-image icon (CSP-safe).
+        results.querySelectorAll('.dm-picker-row .av img').forEach((img) => {
+          img.onerror = () => { img.style.display = 'none'; };
+        });
+      } catch (e) {
+        results.innerHTML = `<p class="form-error" style="padding:14px;text-align:center">${escapeHTML(e.message)}</p>`;
+      }
+    };
+    input.oninput = () => {
+      const q = input.value.trim().toLowerCase();
+      clearTimeout(debounceT);
+      debounceT = setTimeout(() => runSearch(q), 200);
+    };
+    bindModalDismiss('#dmPickerModal', '#dmPickerClose');
+    showModal('#dmPickerModal');
+    setTimeout(() => input.focus(), 50);
+  }
+
+  // After login/register, if the user clicked a /invite/<code> link before
+  // authenticating, finalize the join silently.
+  async function consumePendingInvite() {
+    let code = '';
+    try { code = sessionStorage.getItem('pendingInviteCode') || ''; } catch (_) { return; }
+    if (!code) return;
+    try { sessionStorage.removeItem('pendingInviteCode'); } catch (_) { /* sessionStorage unavailable */ }
+    try {
+      const r = await api('/api/servers/join', { method: 'POST', body: { code } });
+      if (!state.servers.some((s) => s.id === r.server.id)) state.servers.push(r.server);
+      switchServer(r.server.id);
+      flashToast(`Te uniste a ${r.server.name}`);
+    } catch (e) {
+      flashToast('No pude unirte: ' + e.message);
+    }
   }
 
   // ----- Stickers -----
@@ -1748,12 +2360,7 @@
     // Notifications + side panels.
     const notifBtn = $('#notifBtn');
     if (notifBtn) notifBtn.addEventListener('click', toggleNotifPanel);
-    const onlineToggle = $('#onlineToggle');
-    if (onlineToggle) {
-      onlineToggle.addEventListener('click', () => {
-        const p = $('#onlinePanel'); if (p) p.classList.toggle('open');
-      });
-    }
+    setupOnlinePanelToggle();
     if (state.me) {
       loadNotifications().catch(() => {});
       loadServers().catch(() => {});
@@ -1767,6 +2374,436 @@
     setupMobileDrawer();
     setupHeaderSearch();
   }
+
+  // ============================================================
+  // Online panel toggle (visibilidad persistida en localStorage).
+  // En desktop colapsa la columna del grid, en mobile abre/cierra
+  // el drawer (.open). Refleja estado en aria-pressed para a11y.
+  // ============================================================
+  function setupOnlinePanelToggle() {
+    const btn = $('#onlineToggle');
+    const panel = $('#onlinePanel');
+    const grid = document.querySelector('.chat-grid');
+    if (!btn || !panel || !grid) return;
+    const KEY = 'foro34.onlinePanelHidden';
+    const isMobile = () => window.matchMedia('(max-width: 900px)').matches;
+    const apply = () => {
+      const hidden = localStorage.getItem(KEY) === '1';
+      if (isMobile()) {
+        // En mobile el panel arranca cerrado siempre; localStorage no aplica.
+        panel.classList.remove('open');
+        grid.classList.remove('online-collapsed');
+        btn.setAttribute('aria-pressed', 'false');
+      } else {
+        grid.classList.toggle('online-collapsed', hidden);
+        panel.classList.remove('open');
+        btn.setAttribute('aria-pressed', String(!hidden));
+      }
+    };
+    btn.addEventListener('click', () => {
+      if (isMobile()) {
+        const open = panel.classList.toggle('open');
+        btn.setAttribute('aria-pressed', String(open));
+      } else {
+        const nowHidden = !grid.classList.contains('online-collapsed');
+        grid.classList.toggle('online-collapsed', nowHidden);
+        if (nowHidden) localStorage.setItem(KEY, '1');
+        else localStorage.removeItem(KEY);
+        btn.setAttribute('aria-pressed', String(!nowHidden));
+      }
+    });
+    window.addEventListener('resize', apply);
+    apply();
+  }
+
+  // ============================================================
+  // Twemoji: reemplaza emojis nativos por SVGs estilo Twitter/Discord
+  // (consistencia visual cross-platform). Se llama después de cada
+  // render que pueda contener emojis (mensajes, online list, perfil…).
+  // ============================================================
+  function tw(el) {
+    if (!el || !window.twemoji) return;
+    try {
+      window.twemoji.parse(el, {
+        folder: 'svg',
+        ext: '.svg',
+        base: 'https://cdn.jsdelivr.net/gh/jdecked/twemoji@15.1.0/assets/',
+        className: 'emoji',
+      });
+    } catch (_) { /* parser opcional, no bloquea */ }
+  }
+
+  // =====================================================
+  // ===== CLIPS (TikTok-style vertical video feed) =====
+  // =====================================================
+  const clips = {
+    videos: [],
+    loading: false,
+    noMore: false,
+    observer: null,
+    activeVideo: null,
+    commentVideoId: null,
+  };
+
+  function initClipsView() {
+    const feed = $('#clipsFeed');
+    if (!feed) return;
+    if (!clips.observer) {
+      clips.observer = new IntersectionObserver(onClipVisible, {
+        root: feed,
+        threshold: 0.6,
+      });
+    }
+    if (clips.videos.length === 0) loadClips(true);
+    setupClipsUpload();
+    setupClipsComments();
+  }
+
+  async function loadClips(reset) {
+    if (clips.loading) return;
+    clips.loading = true;
+    const feed = $('#clipsFeed');
+    if (reset) {
+      clips.videos = [];
+      clips.noMore = false;
+      if (feed) feed.innerHTML = '<div class="clips-loader muted">Cargando clips...</div>';
+    }
+    try {
+      const before = clips.videos.length ? clips.videos[clips.videos.length - 1].createdAt : '';
+      const url = '/api/videos/feed?limit=10' + (before ? '&before=' + encodeURIComponent(before) : '');
+      const data = await api(url);
+      if (reset && feed) feed.innerHTML = '';
+      if (!data.videos || data.videos.length === 0) {
+        clips.noMore = true;
+        if (clips.videos.length === 0 && feed) {
+          feed.innerHTML = '<div class="clips-empty muted">No hay clips todavía. ¡Subí el primero!</div>';
+        }
+        return;
+      }
+      data.videos.forEach((v) => {
+        clips.videos.push(v);
+        const card = buildClipCard(v);
+        if (feed) feed.appendChild(card);
+      });
+    } catch (err) {
+      console.error('loadClips', err);
+      if (feed && clips.videos.length === 0) {
+        feed.innerHTML = '<div class="clips-empty muted">Error cargando clips.</div>';
+      }
+    } finally {
+      clips.loading = false;
+    }
+  }
+
+  function buildClipCard(v) {
+    const card = document.createElement('div');
+    card.className = 'clip-card';
+    card.dataset.videoId = v.id;
+    const liked = v.liked ? ' liked' : '';
+    card.innerHTML = `
+      <video class="clip-video" src="${escapeHTML(v.videoUrl)}" poster="${escapeHTML(v.thumbnailUrl)}"
+             playsinline loop muted preload="metadata"></video>
+      <div class="clip-tap-overlay"></div>
+      <div class="clip-sidebar">
+        <button class="clip-sb-btn clip-like-btn${liked}" data-id="${v.id}">
+          <svg class="ic"><use href="#i-heart"/></svg>
+          <span class="clip-like-count">${formatCount(v.likeCount)}</span>
+        </button>
+        <button class="clip-sb-btn clip-comment-btn" data-id="${v.id}">
+          <svg class="ic"><use href="#i-message"/></svg>
+          <span>${formatCount(v.commentCount)}</span>
+        </button>
+        <button class="clip-sb-btn clip-share-btn" data-id="${v.id}">
+          <svg class="ic"><use href="#i-share"/></svg>
+          <span>Compartir</span>
+        </button>
+      </div>
+      <div class="clip-info">
+        <a class="clip-author" href="/u/${escapeHTML(v.author.username)}" data-route="/u/${escapeHTML(v.author.username)}">
+          <img class="clip-author-avatar" src="${v.author.avatarUrl || avatarFallback(v.author.displayName)}" alt="" />
+          <span class="clip-author-name" style="color:${escapeHTML(v.author.color)}">${escapeHTML(v.author.displayName)}</span>
+        </a>
+        ${v.caption ? `<p class="clip-caption">${escapeHTML(v.caption)}</p>` : ''}
+        ${v.tags && v.tags.length ? `<div class="clip-tags">${v.tags.map((t) => `<span class="clip-tag">#${escapeHTML(t)}</span>`).join(' ')}</div>` : ''}
+      </div>
+      <button class="clip-mute-btn" aria-label="Silenciar/Activar sonido">
+        <svg class="ic"><use href="#i-volume-x"/></svg>
+      </button>
+    `;
+    const video = card.querySelector('.clip-video');
+    const muteBtn = card.querySelector('.clip-mute-btn');
+    const tapOverlay = card.querySelector('.clip-tap-overlay');
+
+    muteBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      video.muted = !video.muted;
+      muteBtn.innerHTML = video.muted
+        ? '<svg class="ic"><use href="#i-volume-x"/></svg>'
+        : '<svg class="ic"><use href="#i-volume"/></svg>';
+    });
+
+    tapOverlay.addEventListener('click', () => {
+      if (video.paused) video.play().catch(() => {});
+      else video.pause();
+      card.classList.toggle('paused', video.paused);
+    });
+
+    card.querySelector('.clip-like-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleClipLike(v.id, card);
+    });
+    card.querySelector('.clip-comment-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      openClipComments(v.id);
+    });
+    card.querySelector('.clip-share-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      shareClip(v.id);
+    });
+
+    if (clips.observer) clips.observer.observe(card);
+
+    return card;
+  }
+
+  function formatCount(n) {
+    if (!n) return '0';
+    if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+    return String(n);
+  }
+
+  function onClipVisible(entries) {
+    entries.forEach((entry) => {
+      const card = entry.target;
+      const video = card.querySelector('.clip-video');
+      if (!video) return;
+      if (entry.isIntersecting) {
+        if (clips.activeVideo && clips.activeVideo !== video) {
+          clips.activeVideo.pause();
+          clips.activeVideo.currentTime = 0;
+        }
+        clips.activeVideo = video;
+        video.play().catch(() => {});
+        card.classList.remove('paused');
+        bumpView(card.dataset.videoId);
+        // Infinite scroll: if near the end, load more.
+        const idx = clips.videos.findIndex((v) => v.id === card.dataset.videoId);
+        if (!clips.noMore && idx >= clips.videos.length - 3) loadClips(false);
+      } else {
+        video.pause();
+      }
+    });
+  }
+
+  const viewedClips = new Set();
+  function bumpView(videoId) {
+    if (viewedClips.has(videoId)) return;
+    viewedClips.add(videoId);
+    api(`/api/videos/${videoId}/view`, { method: 'POST' }).catch(() => {});
+  }
+
+  async function toggleClipLike(videoId, card) {
+    try {
+      const data = await api(`/api/videos/${videoId}/like`, { method: 'POST' });
+      const btn = card.querySelector('.clip-like-btn');
+      const count = card.querySelector('.clip-like-count');
+      if (data.liked) btn.classList.add('liked');
+      else btn.classList.remove('liked');
+      if (count) count.textContent = formatCount(data.likeCount);
+      const v = clips.videos.find((x) => x.id === videoId);
+      if (v) { v.liked = data.liked; v.likeCount = data.likeCount; }
+    } catch (e) { console.warn('like error', e); }
+  }
+
+  function shareClip(videoId) {
+    const url = location.origin + '/clips/' + videoId;
+    if (navigator.share) {
+      navigator.share({ title: 'Foro34 Clip', url }).catch(() => {});
+    } else if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(() => alert('Link copiado!')).catch(() => {});
+    }
+  }
+
+  // ----- Clip comments -----
+  function openClipComments(videoId) {
+    clips.commentVideoId = videoId;
+    const sheet = $('#clipCommentsSheet');
+    if (!sheet) return;
+    sheet.classList.remove('hidden');
+    const list = $('#clipCommentsList');
+    if (list) list.innerHTML = '<div class="muted" style="padding:12px">Cargando...</div>';
+    loadClipComments(videoId);
+  }
+
+  function closeClipComments() {
+    const sheet = $('#clipCommentsSheet');
+    if (sheet) sheet.classList.add('hidden');
+    clips.commentVideoId = null;
+  }
+
+  async function loadClipComments(videoId) {
+    try {
+      const data = await api(`/api/videos/${videoId}/comments`);
+      const list = $('#clipCommentsList');
+      const countEl = $('#clipCommentCount');
+      if (countEl) countEl.textContent = data.total ? `(${data.total})` : '';
+      if (!list) return;
+      if (!data.comments || data.comments.length === 0) {
+        list.innerHTML = '<div class="muted" style="padding:12px">Sin comentarios. ¡Sé el primero!</div>';
+        return;
+      }
+      list.innerHTML = data.comments.map((c) => `
+        <div class="clip-comment">
+          <img class="clip-comment-avatar" src="${c.author.avatarUrl || avatarFallback(c.author.displayName)}" alt="" />
+          <div class="clip-comment-body">
+            <span class="clip-comment-name" style="color:${escapeHTML(c.author.color)}">${escapeHTML(c.author.displayName)}</span>
+            <span class="clip-comment-text">${escapeHTML(c.text)}</span>
+            <span class="clip-comment-time muted">${timeAgo(c.createdAt)}</span>
+          </div>
+        </div>
+      `).join('');
+    } catch (err) {
+      console.error('load comments', err);
+    }
+  }
+
+  function timeAgo(dateStr) {
+    const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
+    if (diff < 60) return 'ahora';
+    if (diff < 3600) return Math.floor(diff / 60) + ' min';
+    if (diff < 86400) return Math.floor(diff / 3600) + ' h';
+    return Math.floor(diff / 86400) + ' d';
+  }
+
+  async function postClipComment() {
+    const input = $('#clipCommentInput');
+    if (!input || !clips.commentVideoId) return;
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    try {
+      await api(`/api/videos/${clips.commentVideoId}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      loadClipComments(clips.commentVideoId);
+    } catch (e) {
+      alert('Error: ' + (e.message || 'no se pudo comentar'));
+    }
+  }
+
+  function setupClipsComments() {
+    const closeBtn = $('#clipCommentsClose');
+    if (closeBtn) closeBtn.onclick = closeClipComments;
+    const sendBtn = $('#clipCommentSend');
+    if (sendBtn) sendBtn.onclick = postClipComment;
+    const input = $('#clipCommentInput');
+    if (input) input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); postClipComment(); }
+    });
+  }
+
+  // ----- Clip upload -----
+  let clipFile = null;
+
+  function setupClipsUpload() {
+    const btn = $('#clipsUploadBtn');
+    const modal = $('#clipUploadModal');
+    const closeBtn = $('#clipUploadClose');
+    const fileInput = $('#clipFileInput');
+    const fileDrop = $('#clipFileDrop');
+    const preview = $('#clipPreviewVideo');
+    const submitBtn = $('#clipSubmitBtn');
+
+    if (!btn || !modal) return;
+    btn.onclick = () => { if (!state.me) { go('/login'); return; } modal.classList.remove('hidden'); };
+    if (closeBtn) closeBtn.onclick = () => { modal.classList.add('hidden'); resetClipForm(); };
+    modal.addEventListener('click', (e) => { if (e.target === modal) { modal.classList.add('hidden'); resetClipForm(); } });
+
+    if (fileInput) fileInput.addEventListener('change', () => {
+      const f = fileInput.files[0];
+      if (f) setClipFile(f, preview, submitBtn, fileDrop);
+    });
+    if (fileDrop) {
+      fileDrop.addEventListener('dragover', (e) => { e.preventDefault(); fileDrop.classList.add('dragover'); });
+      fileDrop.addEventListener('dragleave', () => { fileDrop.classList.remove('dragover'); });
+      fileDrop.addEventListener('drop', (e) => {
+        e.preventDefault();
+        fileDrop.classList.remove('dragover');
+        const f = e.dataTransfer.files[0];
+        if (f && f.type.startsWith('video/')) setClipFile(f, preview, submitBtn, fileDrop);
+      });
+    }
+    if (submitBtn) submitBtn.onclick = submitClip;
+  }
+
+  function setClipFile(file, preview, submitBtn, fileDrop) {
+    clipFile = file;
+    if (preview) {
+      preview.src = URL.createObjectURL(file);
+      preview.classList.remove('hidden');
+      preview.play().catch(() => {});
+    }
+    if (fileDrop) fileDrop.classList.add('hidden');
+    if (submitBtn) submitBtn.disabled = false;
+  }
+
+  function resetClipForm() {
+    clipFile = null;
+    const preview = $('#clipPreviewVideo');
+    if (preview) { preview.src = ''; preview.classList.add('hidden'); }
+    const fileDrop = $('#clipFileDrop');
+    if (fileDrop) fileDrop.classList.remove('hidden');
+    const caption = $('#clipCaption');
+    if (caption) caption.value = '';
+    const tags = $('#clipTags');
+    if (tags) tags.value = '';
+    const submitBtn = $('#clipSubmitBtn');
+    if (submitBtn) submitBtn.disabled = true;
+    const progress = $('#clipProgress');
+    if (progress) progress.classList.add('hidden');
+  }
+
+  async function submitClip() {
+    if (!clipFile) return;
+    const submitBtn = $('#clipSubmitBtn');
+    const progress = $('#clipProgress');
+    const progressText = $('#clipProgressText');
+    if (submitBtn) submitBtn.disabled = true;
+    if (progress) progress.classList.remove('hidden');
+    if (progressText) progressText.textContent = 'Subiendo...';
+
+    const fd = new FormData();
+    fd.append('video', clipFile);
+    const caption = ($('#clipCaption') || {}).value || '';
+    const tags = ($('#clipTags') || {}).value || '';
+    if (caption) fd.append('caption', caption);
+    if (tags) fd.append('tags', tags);
+
+    try {
+      const data = await api('/api/videos', { method: 'POST', body: fd });
+      if (data && data.video) {
+        clips.videos.unshift(data.video);
+        const feed = $('#clipsFeed');
+        if (feed) {
+          const empty = feed.querySelector('.clips-empty');
+          if (empty) empty.remove();
+          feed.prepend(buildClipCard(data.video));
+        }
+      }
+      const modal = $('#clipUploadModal');
+      if (modal) modal.classList.add('hidden');
+      resetClipForm();
+    } catch (e) {
+      alert('Error subiendo clip: ' + (e.message || 'desconocido'));
+      if (submitBtn) submitBtn.disabled = false;
+    } finally {
+      if (progress) progress.classList.add('hidden');
+    }
+  }
+  // ===== END CLIPS =====
 
   function setupHeaderSearch() {
     const input = document.getElementById('searchInput');
